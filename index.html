@@ -15,6 +15,8 @@
         #id-display { font-size: 1.5rem; color: #ffd700; font-weight: bold; display: block; margin-bottom: 10px; letter-spacing: 2px; }
         .btn-copy { background-color: #2196F3; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
         .btn-copy:hover { background-color: #1976D2; }
+        
+        .status-msg { font-size: 0.8rem; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -29,6 +31,8 @@
             <span id="id-display"></span>
             <button class="btn-copy" id="copyBtn" onclick="copyToClipboard()">คัดลอกรหัส ID</button>
         </div>
+        
+        <p class="status-msg" id="status-text">Server Status: Online ✅</p>
     </div>
 
     <script>
@@ -37,6 +41,7 @@
             const resultContainer = document.getElementById('result-container');
             const idDisplay = document.getElementById('id-display');
             const copyBtn = document.getElementById('copyBtn');
+            const statusText = document.getElementById('status-text');
             
             if (fileInput.files.length === 0) {
                 alert("กรุณาเลือกรูปภาพก่อนครับ!");
@@ -46,41 +51,20 @@
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
             copyBtn.style.display = "none";
+            statusText.innerText = "กำลังส่งข้อมูลไปยัง Server...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
 
             try {
-                const response = await fetch('https://mine-city.onrender.com/upload', {
+                // เชื่อมต่อกับ URL บน Render.com ที่คุณได้รับมา
+                const response = await fetch('https://mine-city-api.onrender.com/upload', {
                     method: 'POST',
                     body: formData
                 });
 
                 const data = await response.json();
+                
                 if (data.id) {
                     idDisplay.innerText = data.id;
                     copyBtn.style.display = "inline-block";
-                    copyBtn.innerText = "คัดลอกรหัส ID";
-                } else {
-                    idDisplay.innerText = "เกิดข้อผิดพลาด";
-                    alert(data.error || "Unknown error");
-                }
-            } catch (error) {
-                idDisplay.innerText = "เชื่อมต่อไม่ได้";
-                alert("กรุณาเปิดไฟล์ main.py ใน VS Code ค้างไว้ด้วยครับ!");
-            }
-        }
-
-        function copyToClipboard() {
-            const idText = document.getElementById('id-display').innerText;
-            navigator.clipboard.writeText(idText).then(() => {
-                const copyBtn = document.getElementById('copyBtn');
-                copyBtn.innerText = "✅ คัดลอกแล้ว!";
-                setTimeout(() => { copyBtn.innerText = "คัดลอกรหัส ID"; }, 2000);
-            });
-        }
-    </script>
-</body>
-
-</html>
-
