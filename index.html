@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>Mine City - Image System (Direct Access)</title>
+    <title>Mine City - Image System (Direct Update)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     
@@ -31,16 +31,16 @@
         <p class="sub-title">ระบบจัดการรูปติดบัตร [ ฉบับสั่งตรง Firebase ]</p>
         
         <div class="section">
-            <h3>[ สำหรับใส่รูปครั้งแรก / เอารหัส ID ]</h3>
-            <label>เลือกรูปภาพโปรไฟล์:</label>
+            <h3>[ สำหรับอัปโหลดเอารหัส ID ]</h3>
+            <label>เลือกรูปภาพ:</label>
             <input type="file" id="fileNormal" accept="image/*">
             <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลดเอารหัส ID</button>
         </div>
 
         <div class="section">
-            <h3>[ สำหรับเปลี่ยนรูปบัตรประชาชน ]</h3>
-            <label>เลข No.ID ใต้บัตร (CitizenID):</label>
-            <input type="text" id="userIdInput" placeholder="ตัวอย่าง: 378901" value="378901">
+            <h3>[ อัปเดตรูปเข้าบัตรประชาชนทันที ]</h3>
+            <label>RobloxID (ตำแหน่งในฐานข้อมูล):</label>
+            <input type="text" id="robloxIdInput" placeholder="ตัวอย่าง: 9232519691" value="9232519691">
             <label>เลือกรูปภาพใหม่:</label>
             <input type="file" id="fileAuto" accept="image/*">
             <button class="btn-auto" onclick="handleUpload('auto')">อัปเดตรูปเข้าบัตรทันที</button>
@@ -55,7 +55,7 @@
     </div>
 
     <script>
-        // --- 🔒 การตั้งค่า Firebase ---
+        // --- 🔒 การตั้งค่า Firebase (URL จากรูปของคุณ) ---
         const firebaseConfig = {
             databaseURL: "https://minecityimages-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
@@ -66,17 +66,16 @@
             const statusText = document.getElementById('status-text');
             const resultContainer = document.getElementById('result-container');
             const idDisplay = document.getElementById('id-display');
-            const copyBtn = document.getElementById('copyBtn');
             
             let fileInput = (type === 'normal') ? document.getElementById('fileNormal') : document.getElementById('fileAuto');
-            let citizenId = document.getElementById('userIdInput').value.trim();
+            let robloxId = document.getElementById('robloxIdInput').value.trim();
 
             if (fileInput.files.length === 0) {
                 alert("กรุณาเลือกรูปภาพก่อนครับ!");
                 return;
             }
 
-            idDisplay.innerText = "กำลังประมวลผลพิกเซล...";
+            idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
             statusText.innerText = "กำลังส่งรูปไปที่ Render...";
 
@@ -84,7 +83,7 @@
             formData.append('image', fileInput.files[0]);
 
             try {
-                // 1. ส่งรูปไปให้ Render ประมวลผลเป็นพิกเซล
+                // 1. ส่งรูปไปให้ Render ประมวลผลพิกเซล
                 const response = await fetch('https://mine-city.onrender.com/upload', {
                     method: 'POST',
                     body: formData
@@ -95,31 +94,27 @@
                 if (data.id) {
                     const newImageId = data.id;
                     idDisplay.innerText = newImageId;
-                    copyBtn.style.display = "inline-block";
 
                     if (type === 'auto') {
-                        statusText.innerText = "⌛ กำลังอัปเดตค่าเข้า Firebase...";
+                        statusText.innerText = "⌛ กำลังสั่งอัปเดต Firebase โดยตรง...";
                         
-                        // 2. 🚀 [หัวใจสำคัญ] หน้าเว็บสั่งอัปเดตไปที่ RobloxID ของคุณโดยตรง
-                        // อ้างอิงจากโครงสร้าง: UsersID -> 9232519691 -> ImageURL
-                        const robloxId = "9232519691"; 
-                        
+                        // 2. 🚀 สั่งเขียนข้อมูลทับที่ตำแหน่ง RobloxID ทันที
                         database.ref('UsersID/' + robloxId).update({
                             "ImageURL": newImageId
                         }).then(() => {
-                            statusText.innerText = "✅ เปลี่ยนรูปในฐานข้อมูลสำเร็จ!";
-                            alert("สำเร็จ! ค่า ImageURL ของคุณถูกเปลี่ยนเป็น: " + newImageId);
-                        }).catch((error) => {
-                            statusText.innerText = "❌ Firebase Error: " + error.message;
-                            console.error(error);
+                            statusText.innerText = "✅ อัปเดต ImageURL สำเร็จ!";
+                            alert("สำเร็จ! ค่าใน Firebase ของคุณเปลี่ยนเป็น: " + newImageId);
+                        }).catch((err) => {
+                            statusText.innerText = "❌ Firebase Error: " + err.message;
+                            console.error(err);
                         });
                     } else {
-                        statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพ";
+                        statusText.innerText = "✅ อัปโหลดสำเร็จ!";
                     }
                 }
             } catch (error) {
-                statusText.innerText = "❌ ติดต่อ Render ไม่ได้";
-                alert("กรุณาตรวจสอบว่า Render เปิดอยู่หรือไม่");
+                statusText.innerText = "❌ ติดต่อ Server ไม่ได้";
+                alert("กรุณาเช็คว่า Render ของคุณเปิดอยู่หรือไม่");
             }
         }
 
