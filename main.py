@@ -29,7 +29,7 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
+        # รับค่า CitizenID จากหน้าเว็บ
         citizen_id_input = request.form.get('userId')
         
         if 'image' not in request.files:
@@ -48,45 +48,46 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
+        # 2. บันทึกข้อมูลพิกเซลลง images/ (เพื่อให้ Roblox ดึงไปวาด)
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาเป้าหมายแบบละเอียด (Manual Mapping)
+        # 3. ระบบค้นหาเป้าหมาย (Manual Mapping & Type Conversion)
         if citizen_id_input:
-            search_target = str(citizen_id_input).strip()
-            print(f"🔎 เริ่มค้นหา CitizenID: '{search_target}'")
-            
-            # ดึงข้อมูล UsersID ทั้งหมดมาตรวจสอบ
-            users_ref = db.reference('UsersID')
-            all_users_data = users_ref.get()
+            try:
+                # แปลงค่าที่กรอกมาให้เป็นตัวเลข เพื่อให้ตรงกับ Firebase
+                search_target = int(str(citizen_id_input).strip())
+                print(f"🔎 กำลังค้นหา CitizenID (Number): {search_target}")
+                
+                users_ref = db.reference('UsersID')
+                all_users = users_ref.get() # ดึงข้อมูล UsersID ทั้งหมด
 
-            target_roblox_id = None
-            if all_users_data:
-                # วนลูปเช็กทุก RobloxID (เช่น 9232519691) เพื่อมองหา CitizenID ที่ตรงกัน
-                for roblox_id, user_info in all_users_data.items():
-                    # บังคับแปลง CitizenID จาก DB เป็น String เพื่อป้องกันปัญหา Type mismatch
-                    db_citizen_id = str(user_info.get('CitizenID', '')).strip()
+                target_roblox_id = None
+                if all_users:
+                    for roblox_id, user_info in all_users.items():
+                        # ดึง CitizenID จาก DB มาเทียบแบบตัวเลข
+                        db_val = user_info.get('CitizenID')
+                        if db_val == search_target:
+                            target_roblox_id = roblox_id
+                            break
+                
+                if target_roblox_id:
+                    # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลผู้เล่น
+                    db.reference(f'UsersID/{target_roblox_id}').update({
+                        "ImageURL": image_id
+                    })
+                    print(f"✅ สำเร็จ! เปลี่ยนรูปให้ {target_roblox_id}")
+                    return jsonify({"success": True, "id": image_id})
+                else:
+                    # หากหาเลขไม่เจอ (เป็นที่มาของ Log 200 18)
+                    print(f"⚠️ หาไม่พบเลข {search_target} ในฐานข้อมูล")
+                    return jsonify({"error": "ID not found"}), 404
                     
-                    if db_citizen_id == search_target:
-                        target_roblox_id = roblox_id
-                        break
-            
-            if target_roblox_id:
-                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลเป้าหมาย
-                db.reference(f'UsersID/{target_roblox_id}').update({
-                    "ImageURL": image_id
-                })
-                status_msg = f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id}"
-                print(status_msg)
-                return jsonify({"success": True, "id": image_id, "message": status_msg})
-            else:
-                # หากหาไม่เจอ (เป็นที่มาของสถานะ 200 18 ใน Log)
-                print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่อยู่ในฐานข้อมูล")
-                return jsonify({"error": "ID not found"}), 404
+            except ValueError:
+                return jsonify({"error": "Invalid ID format"}), 400
         
         return jsonify({"success": True, "id": image_id})
 
@@ -99,6 +100,6 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
-    # ตั้งค่า Port สำหรับ Render.com
+    # กำหนด Port สำหรับ Render
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
