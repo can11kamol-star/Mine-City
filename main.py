@@ -7,17 +7,14 @@ import uuid
 import os
 import json
 
-# --- 🔒 การเชื่อมต่อ Firebase แบบปลอดภัย ---
+# --- 🔒 การเชื่อมต่อ Firebase ---
 try:
-    # พยายามอ่านค่าจาก Environment Variable (สำหรับ Render.com)
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     
     if firebase_config_str:
-        # ถ้าเจอค่าในระบบ ให้แปลงจาก String เป็น JSON
         firebase_config_dict = json.loads(firebase_config_str)
         cred = credentials.Certificate(firebase_config_dict)
     else:
-        # ถ้าไม่เจอ (เช่น รันในเครื่องตัวเอง) ให้ลองอ่านจากไฟล์เดิม
         cred = credentials.Certificate("firebase-key.json")
 
     firebase_admin.initialize_app(cred, {
@@ -33,9 +30,15 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
+        # 1. ตรวจสอบข้อมูลที่ส่งมา (ต้องมีทั้งรูปและ userId)
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
         
+        user_id = request.form.get('userId') # รับค่า UserId จากหน้าเว็บ
+        if not user_id:
+            return jsonify({"error": "Missing UserId"}), 400
+        
+        # 2. ประมวลผลรูปภาพ (ใช้ขนาด 50x50 เพื่อความลื่นไหลใน Roblox)
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -48,16 +51,26 @@ def upload_image():
                 r, g, b = img.getpixel((x, y))
                 pixels.append([r, g, b])
                 
+        # 3. สร้างรหัสรูปภาพ 8 หลัก
         image_id = str(uuid.uuid4())[:8]
-        ref = db.reference(f'images/{image_id}')
-        ref.set({
+        
+        # 4. บันทึกชุดพิกเซลลงในโฟลเดอร์ images/
+        db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": width,
             "height": height
         })
         
-        return jsonify({"id": image_id})
+        # 5. อัปเดตรหัสรูปภาพใหม่เข้าที่ตัวผู้เล่นทันที ✨
+        db.reference(f'UsersID/{user_id}').update({
+            "ImageURL": image_id
+        })
+        
+        print(f"✅ สำเร็จ! อัปเดตรูป {image_id} ให้ผู้เล่น {user_id} แล้ว")
+        return jsonify({"success": True, "id": image_id, "userId": user_id})
+        
     except Exception as e:
+        print(f"❌ Upload Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/', methods=['GET'])
@@ -65,8 +78,6 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
-    # สำหรับ Render.com ต้องดึงค่า Port จากระบบ หรือใช้ 5000 เป็นค่าเริ่มต้น
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Mine City API is starting on port {port}...")
     app.run(host='0.0.0.0', port=port)
-
