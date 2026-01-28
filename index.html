@@ -92,3 +92,40 @@
             }
 
             try {
+                const response = await fetch('https://mine-city.onrender.com/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success || data.id) {
+                    idDisplay.innerText = data.id;
+                    copyBtn.style.display = "inline-block";
+                    
+                    if (type === 'auto') {
+                        statusText.innerText = "✅ อัปเดตรูปใน Firebase สำเร็จ!";
+                        alert("ระบบอัปเดตรูปในฐานข้อมูล UsersID ให้เรียบร้อยแล้วครับ!");
+                    } else {
+                        statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพแล้ว";
+                    }
+                } else {
+                    statusText.innerText = "❌ Error: " + (data.error || "เกิดข้อผิดพลาดจาก Server");
+                    alert("เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถอัปเดตข้อมูลได้"));
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                statusText.innerText = "❌ ไม่สามารถเชื่อมต่อ API ได้";
+                alert("เกิดปัญหาการเชื่อมต่อ กรุณาตรวจสอบสถานะ Render.com");
+            }
+        }
+
+        function copyId() {
+            const text = document.getElementById('id-display').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("คัดลอกรหัส " + text + " แล้ว!");
+            });
+        }
+    </script>
+</body>
+</html>
