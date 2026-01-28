@@ -31,7 +31,7 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # รับค่า CitizenID จากหน้าเว็บ
+        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
         citizen_id_input = request.form.get('userId')
         
         if 'image' not in request.files:
@@ -50,7 +50,7 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/
+        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
@@ -67,9 +67,10 @@ def upload_image():
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุกๆ RobloxID
+                # วนลูปหาในทุกๆ RobloxID ที่ซ้อนอยู่ใต้ UsersID
                 for roblox_id, data in all_users.items():
-                    # บังคับเป็น String เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
+                    # ดึงค่า CitizenID จาก DB และบังคับเป็น String เพื่อเปรียบเทียบ
+                    # ป้องกันปัญหา Type mismatch ที่ทำให้ Log ขึ้น 200 18
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
                         found_roblox_id = roblox_id
@@ -80,10 +81,11 @@ def upload_image():
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ อัปเดตสำเร็จสำหรับ CitizenID {search_target} (RobloxID: {found_roblox_id})")
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})")
                 return jsonify({"success": True, "id": image_id})
             else:
-                print(f"⚠️ ไม่พบเลขบัตร '{search_target}' ในระบบ")
+                # ตอบกลับ Error เมื่อหาไม่พบ (สาเหตุของเลข 18 ใน Log)
+                print(f"⚠️ หาไม่พบ: CitizenID '{search_target}' ไม่อยู่ในฐานข้อมูล")
                 return jsonify({"error": "CitizenID not found"}), 404
         
         return jsonify({"success": True, "id": image_id})
