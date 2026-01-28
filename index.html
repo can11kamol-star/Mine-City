@@ -32,7 +32,7 @@
         
         <div class="section">
             <h3>[ สำหรับ ทำบัตรครั้งแรก ]</h3>
-            <label>เลือกรูปภาพ</label>
+            <label>เลือกรูปภาพ:</label>
             <input type="file" id="fileNormal" accept="image/*">
             <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลด</button>
         </div>
@@ -55,7 +55,7 @@
     </div>
 
     <script>
-        // --- 🔒 การตั้งค่า Firebase (URL จากรูปของคุณ) ---
+        // --- 🔒 การตั้งค่า Firebase (URL จากระบบ Mine City) ---
         const firebaseConfig = {
             databaseURL: "https://minecityimages-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
@@ -71,13 +71,13 @@
             let robloxId = document.getElementById('robloxIdInput').value.trim();
 
             if (fileInput.files.length === 0) {
-                alert("กรุณาเลือกรูป!");
+                alert("กรุณาเลือกรูปก่อนครับ!");
                 return;
             }
 
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
-            statusText.innerText = "กำลัง Render...";
+            statusText.innerText = "กำลังประมวลผลผ่าน Render...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
@@ -96,34 +96,32 @@
                     idDisplay.innerText = newImageId;
 
                     if (type === 'auto') {
-                        statusText.innerText = "⌛ กำลังสั่งอัปเดต";
+                        statusText.innerText = "⌛ กำลังสั่งอัปเดตข้อมูล...";
                         
                         // 2. 🚀 สั่งเขียนข้อมูลทับที่ตำแหน่ง RobloxID ทันที
                         database.ref('UsersID/' + robloxId).update({
                             "ImageURL": newImageId
                         }).then(() => {
                             statusText.innerText = "✅ อัปเดตสำเร็จ!";
-                            alert("สำเร็จ! อัปเดตเรียบร้อยแล้ว);
+                            alert("สำเร็จ! อัปเดตรูปภาพเรียบร้อยแล้ว");
                         }).catch((err) => {
                             statusText.innerText = "❌ Firebase Error: " + err.message;
                             console.error(err);
                         });
                     } else {
-                        statusText.innerText = "✅ อัปโหลดสำเร็จ!";
+                        statusText.innerText = "✅ อัปโหลดสำเร็จ! โปรดคัดลอกรหัส ID";
                     }
                 }
             } catch (error) {
                 statusText.innerText = "❌ Server มีปัญหา กรุณาติดต่อทีมงาน";
-                alert("กรุณาติดต่อทีมงาน");
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาตรวจสอบสถานะ Server");
             }
         }
 
         function copyId() {
             const text = document.getElementById('id-display').innerText;
-            navigator.clipboard.writeText(text).then(() => alert("คัดลอกเรียบร้อย!"));
+            navigator.clipboard.writeText(text).then(() => alert("คัดลอกรหัส " + text + " เรียบร้อย!"));
         }
     </script>
 </body>
 </html>
-
-
