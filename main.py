@@ -35,7 +35,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพ 50x50 เพื่อประหยัดพื้นที่และวาดพิกเซลใน Roblox ได้เร็ว
+        # 1. ประมวลผลรูปภาพ 50x50 พิกเซล
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -48,41 +48,44 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกพิกเซลลง images/
+        # 2. บันทึกข้อมูลพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
+        # 3. ระบบค้นหาและอัปเดตแบบ "เจาะจง" โครงสร้าง UsersID
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 เริ่มค้นหา CitizenID: '{search_target}'")
+            print(f"🔎 กำลังไล่หา CitizenID: '{search_target}' ในฐานข้อมูล...")
             
+            # ดึงข้อมูล UsersID ทั้งหมดมาแผ่กางออกเพื่อหา
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดใน UsersID
+            all_users_data = users_ref.get()
 
-            found_roblox_id = None
-            if all_users:
-                # วนลูปหาในทุก Node (เช่น 9232519691) เพื่อมองหา CitizenID ที่ตรงกัน
-                for roblox_id, data in all_users.items():
-                    # บังคับแปลงเป็น String ทั้งคู่เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
-                    db_citizen_id = str(data.get('CitizenID', '')).strip()
+            target_roblox_id = None
+            if all_users_data:
+                # วนลูปเช็กทุก RobloxID (เช่น 9232519691)
+                for roblox_id, user_info in all_users_data.items():
+                    # ดึง CitizenID จาก DB และบังคับเป็น String เพื่อเปรียบเทียบ
+                    # ป้องกันปัญหา Type mismatch ที่ทำให้ Log ตอบกลับ 200 18
+                    db_citizen_id = str(user_info.get('CitizenID', '')).strip()
+                    
                     if db_citizen_id == search_target:
-                        found_roblox_id = roblox_id
+                        target_roblox_id = roblox_id
                         break
             
-            if found_roblox_id:
-                # อัปเดตเฉพาะ ImageURL ในตำแหน่งที่พบข้อมูลผู้เล่น
-                db.reference(f'UsersID/{found_roblox_id}').update({
+            if target_roblox_id:
+                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลผู้เล่นทันที
+                db.reference(f'UsersID/{target_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดต ImageURL ให้ {found_roblox_id}")
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ {target_roblox_id}")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # หากหาไม่เจอ (ต้นเหตุของเลข 18 ใน Logs)
-                print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่มีในฐานข้อมูล")
+                # หากวนหาจนทั่วแล้วยังไม่เจอ (ต้นเหตุของเลข 18 ใน Log)
+                print(f"⚠️ หาไม่พบ: CitizenID {search_target}")
                 return jsonify({"error": "ID not found"}), 404
         
         return jsonify({"success": True, "id": image_id})
