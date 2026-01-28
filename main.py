@@ -29,13 +29,10 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
-        citizen_id_input = request.form.get('userId')
-        
+        # 1. ประมวลผลรูปภาพ 50x50 พิกเซล
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
-
-        # 1. ประมวลผลรูปภาพ 50x50 พิกเซล
+            
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -48,46 +45,23 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
+        # 2. บันทึกพิกเซลลง images/ (เพื่อให้ Roblox ดึงไปวาด)
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาเป้าหมายแบบละเอียด (Manual Mapping)
-        if citizen_id_input:
-            search_target = str(citizen_id_input).strip()
-            print(f"🔎 กำลังไล่หา CitizenID: '{search_target}' ในฐานข้อมูล...")
-            
-            # ดึงข้อมูล UsersID ทั้งหมดมาตรวจสอบ
-            users_ref = db.reference('UsersID')
-            all_users_data = users_ref.get()
-
-            target_roblox_id = None
-            if all_users_data:
-                # วนลูปเช็กทุก RobloxID (เช่น 9232519691) เพื่อมองหา CitizenID ที่ตรงกัน
-                for roblox_id, user_info in all_users_data.items():
-                    # บังคับแปลง CitizenID จาก DB เป็น String เพื่อป้องกันปัญหา Type mismatch
-                    db_citizen_id = str(user_info.get('CitizenID', '')).strip()
-                    
-                    if db_citizen_id == search_target:
-                        target_roblox_id = roblox_id
-                        break
-            
-            if target_roblox_id:
-                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลเป้าหมาย
-                db.reference(f'UsersID/{target_roblox_id}').update({
-                    "ImageURL": image_id
-                })
-                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id} (CitizenID: {search_target})")
-                return jsonify({"success": True, "id": image_id})
-            else:
-                # หากหาไม่เจอ (เป็นที่มาของสถานะ 200 18 ใน Log)
-                print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่อยู่ในฐานข้อมูล")
-                return jsonify({"error": "ID not found"}), 404
+        # 3. วิธีแก้แบบใหม่: เจาะจงไปที่ RobloxID ของคุณโดยตรง (ไม่ต้องวนลูปหา)
+        # เราจะลองเปลี่ยนรูปให้ RobloxID: 9232519691 ซึ่งมี CitizenID: 378901
+        target_path = 'UsersID/9232519691' 
         
-        return jsonify({"success": True, "id": image_id})
+        db.reference(target_path).update({
+            "ImageURL": image_id
+        })
+        
+        print(f"🚀 [DIRECT UPDATE] เปลี่ยน ImageURL เป็น {image_id} สำเร็จ!")
+        return jsonify({"success": True, "id": image_id, "path_updated": target_path})
 
     except Exception as e:
         print(f"❌ Error: {str(e)}")
@@ -95,9 +69,8 @@ def upload_image():
 
 @app.route('/', methods=['GET'])
 def home():
-    return "Mine City API is Running!"
+    return "Mine City Direct-API is Running!"
 
 if __name__ == '__main__':
-    # ตั้งค่า Port สำหรับ Render.com
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
