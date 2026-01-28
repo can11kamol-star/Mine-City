@@ -58,7 +58,7 @@ def upload_image():
         # 3. ระบบค้นหาเป้าหมายแบบละเอียด (Manual Mapping)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 เริ่มค้นหา CitizenID: '{search_target}'")
+            print(f"🔎 กำลังไล่หา CitizenID: '{search_target}' ในฐานข้อมูล...")
             
             # ดึงข้อมูล UsersID ทั้งหมดมาตรวจสอบ
             users_ref = db.reference('UsersID')
@@ -80,9 +80,8 @@ def upload_image():
                 db.reference(f'UsersID/{target_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                status_msg = f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id}"
-                print(status_msg)
-                return jsonify({"success": True, "id": image_id, "message": status_msg})
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id} (CitizenID: {search_target})")
+                return jsonify({"success": True, "id": image_id})
             else:
                 # หากหาไม่เจอ (เป็นที่มาของสถานะ 200 18 ใน Log)
                 print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่อยู่ในฐานข้อมูล")
