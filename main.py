@@ -35,7 +35,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพ 50x50
+        # 1. ประมวลผลรูปภาพ 50x50 เพื่อความเสถียร
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -48,22 +48,23 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/
+        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
+        # 3. ระบบค้นหาและอัปเดตเจาะจงโครงสร้าง UsersID
+        status_msg = "Image generated"
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูลจากโฟลเดอร์ UsersID ทั้งหมด
+            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดภายใต้ UsersID
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุกๆ RobloxID ที่อยู่ใน UsersID
+                # วนลูปหาในทุกๆ RobloxID
                 for roblox_id, data in all_users.items():
                     # ตรวจสอบว่า CitizenID ใน Firebase ตรงกับที่กรอกมาหรือไม่
                     if data and str(data.get('CitizenID')) == search_target:
@@ -71,16 +72,17 @@ def upload_image():
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในตำแหน่งที่พบ (เช่น UsersID/9232519691)
+                # ถ้าเจอ ให้อัปเดต ImageURL ในโฟลเดอร์ RobloxID นั้น
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ อัปเดตสำเร็จสำหรับ CitizenID {search_target}")
+                print(f"✅ สำเร็จ! อัปเดต ImageURL ให้ {found_roblox_id} (CitizenID: {search_target})")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # ถ้าหาไม่เจอ ให้ตอบกลับว่าหาไม่พบ (นี่คือสาเหตุที่ Log ตอบกลับสั้น)
-                print(f"⚠️ ไม่พบ CitizenID: {search_target}")
-                return jsonify({"error": "CitizenID not found"}), 404
+                # นี่คือจุดที่ทำให้เกิดเลข 18 ใน Log เพราะหาเลขบัตรไม่เจอ
+                error_msg = f"ไม่พบ CitizenID: {search_target}"
+                print(f"⚠️ {error_msg}")
+                return jsonify({"error": error_msg}), 404
         
         return jsonify({"success": True, "id": image_id})
 
