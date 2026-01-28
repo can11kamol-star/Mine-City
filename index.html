@@ -36,15 +36,15 @@
         
         <div class="section">
             <h3>[ สำหรับใส่รูปครั้งแรก / เอารหัส ID ]</h3>
-            <label>เลือกรูปภาพของคุณ:</label>
+            <label>เลือกรูปภาพโปรไฟล์:</label>
             <input type="file" id="fileNormal" accept="image/*">
             <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลดเอารหัส ID</button>
         </div>
 
         <div class="section">
-            <h3>[ สำหรับเปลี่ยนรูปบัตรอัตโนมัติ ]</h3>
-            <label>Roblox UserId (ตัวเลขไอดีตัวละคร):</label>
-            <input type="text" id="userIdInput" placeholder="ตัวอย่าง: 12345678">
+            <h3>[ สำหรับเปลี่ยนรูปบัตรประชาชน ]</h3>
+            <label>เลข No.ID ใต้บัตร (CitizenID):</label>
+            <input type="text" id="userIdInput" placeholder="ตัวอย่าง: 378901">
             <label>เลือกรูปภาพใหม่:</label>
             <input type="file" id="fileAuto" accept="image/*">
             <button class="btn-auto" onclick="handleUpload('auto')">อัปเดตรูปเข้าบัตรทันที</button>
@@ -66,29 +66,29 @@
             const copyBtn = document.getElementById('copyBtn');
             
             let fileInput = (type === 'normal') ? document.getElementById('fileNormal') : document.getElementById('fileAuto');
-            let userId = document.getElementById('userIdInput').value;
+            let citizenId = document.getElementById('userIdInput').value;
 
             if (fileInput.files.length === 0) {
                 alert("กรุณาเลือกรูปภาพก่อนครับ!");
                 return;
             }
-            if (type === 'auto' && !userId) {
-                alert("กรุณากรอก Roblox UserId เพื่ออัปเดตข้อมูลในฐานข้อมูลครับ!");
+            if (type === 'auto' && !citizenId) {
+                alert("กรุณากรอกเลข No.ID ใต้บัตรของคุณด้วยครับ!");
                 return;
             }
 
-            // ตั้งค่าการแสดงผลเบื้องต้น
+            // แสดงสถานะเบื้องต้น
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
             copyBtn.style.display = "none";
-            statusText.innerText = "กำลังสื่อสารกับระบบ Mine City API...";
+            statusText.innerText = "ระบบกำลังส่งข้อมูลไปยัง Mine City API...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
             
-            // ส่ง userId ไปที่ Python (ต้องใช้ชื่อ userId ตัวเล็กตรงตามที่ Python รอรับ)
+            // ส่งเลขใต้บัตรไปให้ Python เพื่อทำการค้นหา
             if (type === 'auto') {
-                formData.append('userId', userId); 
+                formData.append('userId', citizenId.trim()); 
             }
 
             try {
@@ -99,31 +99,31 @@
 
                 const data = await response.json();
                 
-                if (data.success || data.id) {
+                if (response.ok && (data.success || data.id)) {
                     idDisplay.innerText = data.id;
                     copyBtn.style.display = "inline-block";
                     
                     if (type === 'auto') {
-                        statusText.innerText = "✅ อัปเดตรูปใน Firebase สำเร็จ!";
-                        alert("ระบบอัปเดตรูปในฐานข้อมูล UsersID ให้เรียบร้อยแล้วครับ!");
+                        statusText.innerText = "✅ เปลี่ยนรูปในระบบสำเร็จแล้ว!";
+                        alert("อัปเดตรูปภาพสำหรับ CitizenID: " + citizenId + " เรียบร้อย!");
                     } else {
-                        statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพแล้ว";
+                        statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพ";
                     }
                 } else {
-                    statusText.innerText = "❌ Error: " + (data.error || "เกิดข้อผิดพลาดจาก Server");
-                    alert("เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถอัปเดตข้อมูลได้"));
+                    statusText.innerText = "❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่พบข้อมูล");
+                    alert("ข้อผิดพลาด: " + (data.error || "ไม่สามารถอัปเดตข้อมูลได้"));
                 }
             } catch (error) {
                 console.error("Fetch Error:", error);
-                statusText.innerText = "❌ ไม่สามารถเชื่อมต่อ API ได้";
-                alert("เกิดปัญหาการเชื่อมต่อ กรุณาตรวจสอบสถานะ Render.com");
+                statusText.innerText = "❌ ไม่สามารถติดต่อ Server ได้";
+                alert("เกิดปัญหาการเชื่อมต่อ กรุณาเช็คสถานะ Render ของคุณ");
             }
         }
 
         function copyId() {
             const text = document.getElementById('id-display').innerText;
             navigator.clipboard.writeText(text).then(() => {
-                alert("คัดลอกรหัส " + text + " แล้ว!");
+                alert("คัดลอกรหัส " + text + " เรียบร้อย!");
             });
         }
     </script>
