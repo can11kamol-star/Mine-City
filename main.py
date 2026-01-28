@@ -31,7 +31,6 @@ def upload_image():
     try:
         # 1. รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
         citizen_id_input = request.form.get('userId') 
-        print(f"🔎 เริ่มการค้นหาสำหรับ CitizenID: '{citizen_id_input}'")
         
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
@@ -49,44 +48,46 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 3. บันทึกข้อมูลพิกเซลลง images/
+        # 3. บันทึกพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 4. ค้นหาและอัปเดต ImageURL (ปรับปรุงใหม่)
-        if citizen_id_input and citizen_id_input.strip() != "":
-            target_id = str(citizen_id_input).strip()
+        # 4. ระบบค้นหาและอัปเดต ImageURL (เน้นความแม่นยำ)
+        if citizen_id_input:
+            search_target = str(citizen_id_input).strip()
+            print(f"🔎 กำลังหา CitizenID: {search_target}")
+
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดใน UsersID
+            all_users = users_ref.get() # ดึงข้อมูลจากโฟลเดอร์ UsersID ทั้งหมด
 
             found_roblox_id = None
             if all_users:
                 for roblox_id, data in all_users.items():
-                    # แปลงค่า CitizenID จาก DB เป็น String เพื่อป้องกันปัญหา Type mismatch
-                    db_citizen_id = str(data.get('CitizenID', '')).strip()
-                    
-                    if db_citizen_id == target_id:
-                        found_roblox_id = roblox_id
-                        break
+                    # ตรวจสอบว่ามีหัวข้อ CitizenID อยู่จริงหรือไม่
+                    if 'CitizenID' in data:
+                        db_val = str(data['CitizenID']).strip()
+                        if db_val == search_target:
+                            found_roblox_id = roblox_id
+                            break
             
             if found_roblox_id:
-                # อัปเดต ImageURL เข้าไปที่ RobloxID ที่เจอ
+                # อัปเดต ImageURL ในจุดที่เจอ
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดต ImageURL ให้ {found_roblox_id} (CitizenID: {target_id})")
+                print(f"✅ อัปเดตสำเร็จสำหรับ RobloxID: {found_roblox_id}")
                 return jsonify({"success": True, "id": image_id})
             else:
-                print(f"⚠️ ไม่พบ CitizenID: {target_id} ในฐานข้อมูล")
-                return jsonify({"error": f"ไม่พบเลขบัตร {target_id} ในระบบ"}), 404
+                print(f"⚠️ หาไม่พบ: ไม่พบเลขบัตร {search_target} ในระบบ")
+                return jsonify({"error": f"ไม่พบเลขบัตร {search_target}"}), 404
         
-        return jsonify({"success": True, "id": image_id, "note": "image only"})
+        return jsonify({"success": True, "id": image_id})
 
     except Exception as e:
-        print(f"❌ Upload Error: {e}")
+        print(f"❌ Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/', methods=['GET'])
