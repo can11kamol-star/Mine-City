@@ -72,26 +72,27 @@
                 alert("กรุณาเลือกรูปภาพก่อนครับ!");
                 return;
             }
-            if (type === 'auto' && !citizenId) {
-                alert("กรุณากรอกเลข No.ID ใต้บัตรของคุณด้วยครับ!");
-                return;
-            }
 
-            // แสดงสถานะเบื้องต้น
+            // แสดงสถานะการทำงาน
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
             copyBtn.style.display = "none";
-            statusText.innerText = "กำลังสื่อสารกับ Mine City API...";
+            statusText.innerText = "กำลังเชื่อมต่อกับ API...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
             
-            // ส่งเลขใต้บัตรไปให้ Python (ตัวแปรต้องชื่อ userId ตามที่ Python รอรับ)
+            // ส่งเลข CitizenID ไปให้ Python ค้นหา
             if (type === 'auto') {
+                if (!citizenId) {
+                    alert("กรุณากรอกเลข No.ID ใต้บัตรด้วยครับ!");
+                    return;
+                }
                 formData.append('userId', citizenId); 
             }
 
             try {
+                // เปลี่ยนเป็น URL ของคุณ (ตรวจสอบว่าชื่อใน Render ตรงกับ mine-city หรือไม่)
                 const response = await fetch('https://mine-city.onrender.com/upload', {
                     method: 'POST',
                     body: formData
@@ -99,25 +100,27 @@
 
                 const data = await response.json();
                 
-                if (response.ok && (data.success || data.id)) {
+                if (response.ok) {
                     idDisplay.innerText = data.id;
                     copyBtn.style.display = "inline-block";
                     
                     if (type === 'auto') {
-                        statusText.innerText = "✅ เปลี่ยนรูปในระบบสำเร็จแล้ว!";
-                        alert("อัปเดตรูปภาพสำหรับ CitizenID: " + citizenId + " เรียบร้อย!");
+                        statusText.innerText = "✅ อัปเดตข้อมูลใน Firebase สำเร็จ!";
+                        alert("สำเร็จ! เปลี่ยนรูปในบัตร (ID: " + citizenId + ") เรียบร้อยแล้ว");
                     } else {
-                        statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพ";
+                        statusText.innerText = "✅ อัปโหลดพิกเซลสำเร็จ!";
                     }
                 } else {
-                    // กรณี Error (เช่น หาเลขบัตรไม่เจอ) จะมาตกที่นี่
-                    statusText.innerText = "❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่พบข้อมูล");
-                    alert("ข้อผิดพลาด: " + (data.error || "ไม่สามารถอัปเดตข้อมูลได้"));
+                    // จัดการกรณีหา CitizenID ไม่เจอ (สถานะ 404/500 จาก Python)
+                    const errorMsg = data.error || "ไม่พบข้อมูลในระบบ";
+                    statusText.innerText = "❌ ผิดพลาด: " + errorMsg;
+                    alert("เกิดข้อผิดพลาด: " + errorMsg + "\n(กรุณาตรวจสอบเลข CitizenID อีกครั้ง)");
+                    idDisplay.innerText = "Error!";
                 }
             } catch (error) {
-                console.error("Fetch Error:", error);
-                statusText.innerText = "❌ ไม่สามารถติดต่อ Server ได้";
-                alert("เกิดปัญหาการเชื่อมต่อ กรุณาเช็คสถานะ Render ของคุณ");
+                console.error("Connection Error:", error);
+                statusText.innerText = "❌ ไม่สามารถติดต่อ Server ได้ (Render อาจกำลัง Sleep)";
+                alert("การเชื่อมต่อล้มเหลว! กรุณาตรวจสอบว่า Render ของคุณเปิดอยู่");
             }
         }
 
