@@ -1,132 +1,101 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <title>Mine City - Image System</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        .card { background-color: #2d2d2d; padding: 2.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 420px; }
-        h2 { color: #4CAF50; margin-bottom: 5px; }
-        .sub-title { color: #aaa; font-size: 0.9rem; margin-bottom: 25px; }
+import firebase_admin
+from firebase_admin import credentials, db
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from PIL import Image
+import uuid
+import os
+import json
+
+# --- 🔒 การเชื่อมต่อ Firebase ---
+try:
+    firebase_config_str = os.getenv('FIREBASE_CONFIG')
+    if firebase_config_str:
+        firebase_config_dict = json.loads(firebase_config_str)
+        cred = credentials.Certificate(firebase_config_dict)
+    else:
+        cred = credentials.Certificate("firebase-key.json")
+
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://minecityimages-default-rtdb.asia-southeast1.firebasedatabase.app/'
+    })
+    print("✅ Firebase Connected!")
+except Exception as e:
+    print(f"❌ Firebase Error: {e}")
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    try:
+        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
+        citizen_id_input = request.form.get('userId')
         
-        .section { background: #232323; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333; text-align: left; }
-        .section h3 { font-size: 0.95rem; margin-top: 0; color: #4CAF50; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 12px; }
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+
+        # 1. ประมวลผลรูปภาพ 50x50 เพื่อความเสถียร (ตามขนาดพิกเซลที่คุณใช้ล่าสุด)
+        file = request.files['image']
+        img = Image.open(file.stream).convert('RGB')
+        img = img.resize((50, 50))
         
-        label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
-        input[type="text"] { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #111; color: white; box-sizing: border-box; margin-bottom: 10px; font-size: 0.9rem; }
-        input[type="file"] { margin: 5px 0 15px 0; width: 100%; color: #bbb; font-size: 0.85rem; }
-        
-        button { border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 0.95rem; transition: 0.3s; margin-top: 5px; }
-        .btn-normal { background-color: #607D8B; color: white; }
-        .btn-normal:hover { background-color: #455A64; }
-        .btn-auto { background-color: #4CAF50; color: white; }
-        .btn-auto:hover { background-color: #45a049; }
-        
-        #result-container { margin-top: 20px; display: none; padding: 15px; background: #3d3d3d; border-radius: 10px; border: 1px solid #555; }
-        #id-display { font-size: 1.4rem; color: #ffd700; font-weight: bold; display: block; margin-bottom: 10px; letter-spacing: 2px; }
-        .btn-copy { background-color: #2196F3; color: white; padding: 6px 12px; width: auto; font-size: 0.8rem; }
-        
-        .status-msg { font-size: 0.8rem; color: #888; margin-top: 15px; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>📱 Mine City</h2>
-        <p class="sub-title">ระบบจัดการรูปติดบัตร [ แนะนำเป็นขนาด 1:1 ]</p>
-        
-        <div class="section">
-            <h3>[ สำหรับใส่รูปครั้งแรก / เอารหัส ID ]</h3>
-            <label>เลือกรูปภาพโปรไฟล์:</label>
-            <input type="file" id="fileNormal" accept="image/*">
-            <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลดเอารหัส ID</button>
-        </div>
-
-        <div class="section">
-            <h3>[ สำหรับเปลี่ยนรูปบัตรประชาชน ]</h3>
-            <label>เลข No.ID ใต้บัตร (CitizenID):</label>
-            <input type="text" id="userIdInput" placeholder="ตัวอย่าง: 378901">
-            <label>เลือกรูปภาพใหม่:</label>
-            <input type="file" id="fileAuto" accept="image/*">
-            <button class="btn-auto" onclick="handleUpload('auto')">อัปเดตรูปเข้าบัตรทันที</button>
-        </div>
-
-        <div id="result-container">
-            <span id="id-display">รหัสรูปภาพจะขึ้นที่นี่</span>
-            <button class="btn-copy" id="copyBtn" onclick="copyId()">คัดลอกรหัส</button>
-        </div>
-        
-        <p class="status-msg" id="status-text">Server Status: Online ✅</p>
-    </div>
-
-    <script>
-        async function handleUpload(type) {
-            const statusText = document.getElementById('status-text');
-            const resultContainer = document.getElementById('result-container');
-            const idDisplay = document.getElementById('id-display');
-            const copyBtn = document.getElementById('copyBtn');
-            
-            let fileInput = (type === 'normal') ? document.getElementById('fileNormal') : document.getElementById('fileAuto');
-            let citizenId = document.getElementById('userIdInput').value.trim();
-
-            if (fileInput.files.length === 0) {
-                alert("กรุณาเลือกรูปภาพก่อนครับ!");
-                return;
-            }
-            if (type === 'auto' && !citizenId) {
-                alert("กรุณากรอกเลข No.ID ใต้บัตรของคุณด้วยครับ!");
-                return;
-            }
-
-            // แสดงสถานะเบื้องต้น
-            idDisplay.innerText = "กำลังประมวลผล...";
-            resultContainer.style.display = "block";
-            copyBtn.style.display = "none";
-            statusText.innerText = "กำลังสื่อสารกับ Mine City API...";
-
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
-            
-            // ส่งเลขใต้บัตรไปให้ Python (ตัวแปรต้องชื่อ userId ตามที่ Python รอรับ)
-            if (type === 'auto') {
-                formData.append('userId', citizenId); 
-            }
-
-            try {
-                const response = await fetch('https://mine-city.onrender.com/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
+        pixels = []
+        for y in range(50):
+            for x in range(50):
+                r, g, b = img.getpixel((x, y))
+                pixels.append([r, g, b])
                 
-                if (response.ok && (data.success || data.id)) {
-                    idDisplay.innerText = data.id;
-                    copyBtn.style.display = "inline-block";
-                    
-                    if (type === 'auto') {
-                        statusText.innerText = "✅ เปลี่ยนรูปในระบบสำเร็จแล้ว!";
-                        alert("อัปเดตรูปภาพสำหรับ CitizenID: " + citizenId + " เรียบร้อย!");
-                    } else {
-                        statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพ";
-                    }
-                } else {
-                    // กรณี Error (เช่น หาเลขบัตรไม่เจอ) จะมาตกที่นี่
-                    statusText.innerText = "❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่พบข้อมูล");
-                    alert("ข้อผิดพลาด: " + (data.error || "ไม่สามารถอัปเดตข้อมูลได้"));
-                }
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                statusText.innerText = "❌ ไม่สามารถติดต่อ Server ได้";
-                alert("เกิดปัญหาการเชื่อมต่อ กรุณาเช็คสถานะ Render ของคุณ");
-            }
-        }
+        image_id = str(uuid.uuid4())[:8]
+        
+        # 2. บันทึกข้อมูลพิกเซลลง images/
+        db.reference(f'images/{image_id}').set({
+            "data": pixels,
+            "width": 50,
+            "height": 50
+        })
 
-        function copyId() {
-            const text = document.getElementById('id-display').innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                alert("คัดลอกรหัส " + text + " เรียบร้อย!");
-            });
-        }
-    </script>
-</body>
-</html>
+        # 3. ระบบค้นหาและอัปเดตเจาะจงโครงสร้าง UsersID
+        if citizen_id_input:
+            search_target = str(citizen_id_input).strip()
+            print(f"🔎 กำลังค้นหา CitizenID: '{search_target}'")
+            
+            users_ref = db.reference('UsersID')
+            all_users = users_ref.get()
+
+            found_roblox_id = None
+            if all_users:
+                # วนลูปหาในทุกๆ RobloxID
+                for roblox_id, data in all_users.items():
+                    # ตรวจสอบว่า CitizenID ใน Firebase ตรงกับที่กรอกมาหรือไม่ (บังคับเป็น String ทั้งคู่)
+                    db_citizen_id = str(data.get('CitizenID', '')).strip()
+                    if db_citizen_id == search_target:
+                        found_roblox_id = roblox_id
+                        break
+            
+            if found_roblox_id:
+                # อัปเดต ImageURL ในโฟลเดอร์ RobloxID ที่พบ
+                db.reference(f'UsersID/{found_roblox_id}').update({
+                    "ImageURL": image_id
+                })
+                print(f"✅ อัปเดตสำเร็จ! CitizenID: {search_target} -> RobloxID: {found_roblox_id}")
+                return jsonify({"success": True, "id": image_id})
+            else:
+                # ตอบกลับ Error หากหาไม่เจอ (ป้องกัน Log 200 18 แบบไม่มีรายละเอียด)
+                error_msg = f"ไม่พบ CitizenID: {search_target} ในระบบ"
+                print(f"⚠️ {error_msg}")
+                return jsonify({"error": error_msg}), 404
+        
+        return jsonify({"success": True, "id": image_id})
+
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/', methods=['GET'])
+def home():
+    return "Mine City API is Running!"
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
