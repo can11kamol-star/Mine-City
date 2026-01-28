@@ -31,7 +31,6 @@ def upload_image():
     try:
         # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
         citizen_id_input = request.form.get('userId')
-        print(f"🔎 กำลังค้นหา CitizenID: '{citizen_id_input}'")
         
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
@@ -56,32 +55,33 @@ def upload_image():
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (เจาะจงโฟลเดอร์ UsersID)
+        # 3. ค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดภายใต้ UsersID
+            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดใน UsersID
 
             found_roblox_id = None
             if all_users:
                 # วนลูปหาในทุกๆ RobloxID
                 for roblox_id, data in all_users.items():
-                    # ตรวจสอบค่า CitizenID ภายในข้อมูลผู้เล่น
+                    # เช็ค CitizenID ในข้อมูลผู้เล่น
                     if data and str(data.get('CitizenID')) == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในโฟลเดอร์ที่เจอ (เช่น UsersID/9232519691)
+                # อัปเดต ImageURL ในจุดที่พบ
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ อัปเดตสำเร็จ! CitizenID: {search_target} -> RobloxID: {found_roblox_id}")
+                print(f"✅ อัปเดตสำเร็จสำหรับ CitizenID {search_target}")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # หากหาไม่เจอ (นี่คือสาเหตุของเลข 18 ใน Log)
-                print(f"⚠️ หาไม่พบ: CitizenID '{search_target}' ไม่อยู่ในระบบ")
-                return jsonify({"error": "CitizenID not found"}), 404
+                # ถ้าหาไม่เจอ จะขึ้นแจ้งเตือนที่ Log Render
+                error_msg = f"ไม่พบ CitizenID: {search_target}"
+                print(f"⚠️ {error_msg}")
+                return jsonify({"error": error_msg}), 404
         
         return jsonify({"success": True, "id": image_id})
 
