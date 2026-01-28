@@ -38,7 +38,7 @@ def upload_image():
         
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
-        img = img.resize((100, 100))
+        img = img.resize((50, 50))
         
         pixels = []
         width, height = img.size
@@ -69,3 +69,4 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Mine City API is starting on port {port}...")
     app.run(host='0.0.0.0', port=port)
+
