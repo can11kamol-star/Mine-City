@@ -2,62 +2,88 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>Mine City Image Uploader</title>
+    <title>Mine City - Image System</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #1a1a1a; color: white; margin: 0; }
-        .card { background-color: #2d2d2d; padding: 2.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 350px; }
-        h2 { color: #4CAF50; margin-bottom: 10px; }
-        input { margin: 20px 0; width: 100%; color: #ccc; }
-        .btn-upload { background-color: #4CAF50; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1rem; transition: 0.3s; }
-        .btn-upload:hover { background-color: #45a049; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: #1a1a1a; color: white; margin: 0; padding: 20px; }
+        .card { background-color: #2d2d2d; padding: 2.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 400px; }
+        h2 { color: #4CAF50; margin-bottom: 5px; }
+        .sub-title { color: #aaa; font-size: 0.9rem; margin-bottom: 25px; }
         
-        #result-container { margin-top: 25px; display: none; padding: 15px; background: #3d3d3d; border-radius: 10px; border: 1px solid #555; }
-        #id-display { font-size: 1.5rem; color: #ffd700; font-weight: bold; display: block; margin-bottom: 10px; letter-spacing: 2px; }
-        .btn-copy { background-color: #2196F3; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
-        .btn-copy:hover { background-color: #1976D2; }
+        .section { background: #232323; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333; }
+        .section h3 { font-size: 1rem; margin-top: 0; color: #ddd; border-bottom: 1px solid #444; padding-bottom: 8px; }
         
-        .status-msg { font-size: 0.8rem; color: #888; margin-top: 10px; }
+        input[type="text"] { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #111; color: white; box-sizing: border-box; margin-bottom: 10px; }
+        input[type="file"] { margin: 10px 0; width: 100%; color: #bbb; font-size: 0.85rem; }
+        
+        button { border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 0.95rem; transition: 0.3s; margin-top: 5px; }
+        .btn-normal { background-color: #607D8B; color: white; }
+        .btn-normal:hover { background-color: #455A64; }
+        .btn-auto { background-color: #4CAF50; color: white; }
+        .btn-auto:hover { background-color: #45a049; }
+        
+        #result-container { margin-top: 20px; display: none; padding: 15px; background: #3d3d3d; border-radius: 10px; border: 1px solid #555; }
+        #id-display { font-size: 1.4rem; color: #ffd700; font-weight: bold; display: block; margin-bottom: 10px; letter-spacing: 2px; }
+        .btn-copy { background-color: #2196F3; color: white; padding: 6px 12px; width: auto; font-size: 0.8rem; }
+        
+        .status-msg { font-size: 0.8rem; color: #888; margin-top: 15px; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>📱 Mine City</h2>
-        <p style="color: #aaa;">ระบบรูปติดบัตร [ แนะนำเป็นขนาด 1:1 ]</p>
+        <p class="sub-title">ระบบจัดการรูปติดบัตร [ แนะนำเป็นขนาด 1:1 ]</p>
         
-        <input type="file" id="imageInput" accept="image/*">
-        <button class="btn-upload" onclick="uploadImage()">อัปโหลดรูปภาพ</button>
+        <div class="section">
+            <h3>[ สำหรับใส่รูปครั้งแรกสร้าง No.ID ในประเทศ ]</h3>
+            <input type="file" id="fileNormal" accept="image/*">
+            <button class="btn-normal" onclick="handleUpload('normal')">อัพโหลดเอารหัส ID</button>
+        </div>
+
+        <div class="section">
+            <h3>[ สำหรับ เปลี่ยนรูปบัตร ]</h3>
+            <input type="text" id="userIdInput" placeholder="กรอก No.ID ใต้บัตร">
+            <input type="file" id="fileAuto" accept="image/*">
+            <button class="btn-auto" onclick="handleUpload('auto')">อัพเดตรูป</button>
+        </div>
 
         <div id="result-container">
-            <span id="id-display"></span>
-            <button class="btn-copy" id="copyBtn" onclick="copyToClipboard()">คัดลอกรหัส ID</button>
+            <span id="id-display">รหัสรูปภาพจะขึ้นที่นี่</span>
+            <button class="btn-copy" id="copyBtn" onclick="copyId()">คัดลอกรหัส</button>
         </div>
         
         <p class="status-msg" id="status-text">Server Status: Online ✅</p>
     </div>
 
     <script>
-        async function uploadImage() {
-            const fileInput = document.getElementById('imageInput');
+        async function handleUpload(type) {
+            const statusText = document.getElementById('status-text');
             const resultContainer = document.getElementById('result-container');
             const idDisplay = document.getElementById('id-display');
             const copyBtn = document.getElementById('copyBtn');
-            const statusText = document.getElementById('status-text');
             
+            let fileInput = (type === 'normal') ? document.getElementById('fileNormal') : document.getElementById('fileAuto');
+            let userId = document.getElementById('userIdInput').value;
+
             if (fileInput.files.length === 0) {
                 alert("กรุณาเลือกรูปภาพก่อนครับ!");
                 return;
             }
+            if (type === 'auto' && !userId) {
+                alert("กรุณากรอก UserId สำหรับการอัพเดตอัตโนมัติ!");
+                return;
+            }
 
+            // แสดงสถานะ
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
             copyBtn.style.display = "none";
-            statusText.innerText = "กำลังส่งข้อมูลไปยัง Server...";
+            statusText.innerText = "กำลังสื่อสารกับระบบ Mine City API...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
+            if (type === 'auto') formData.append('userId', userId);
 
             try {
-                // เปลี่ยนเป็น URL ของคุณที่แสดงผลว่า Running
                 const response = await fetch('https://mine-city.onrender.com/upload', {
                     method: 'POST',
                     body: formData
@@ -65,36 +91,26 @@
 
                 const data = await response.json();
                 
-                if (data.id) {
+                if (data.success || data.id) {
                     idDisplay.innerText = data.id;
                     copyBtn.style.display = "inline-block";
-                    copyBtn.innerText = "คัดลอกรหัส ID";
-                    statusText.innerText = "อัปโหลดสำเร็จ! นำรหัสไปใช้ในเกมได้เลย";
+                    statusText.innerText = (type === 'auto') ? "✅ อัพเดตรูปในเกมสำเร็จ!" : "✅ ได้รหัส ID เรียบร้อย";
+                    if(type === 'auto') alert("ระบบอัพเดตรูปในบัตรประชาชนให้เรียบร้อยแล้วครับ!");
                 } else {
-                    idDisplay.innerText = "เกิดข้อผิดพลาด";
-                    statusText.innerText = "Error: " + (data.error || "Unknown error");
+                    statusText.innerText = "❌ Error: " + (data.error || "เกิดข้อผิดพลาด");
                 }
             } catch (error) {
-                console.error("Error:", error);
-                idDisplay.innerText = "เชื่อมต่อไม่ได้";
-                statusText.innerText = "ไม่สามารถติดต่อ Server ได้";
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่ครับ");
+                statusText.innerText = "❌ ไม่สามารถเชื่อมต่อ API ได้";
+                alert("เกิดปัญหาการเชื่อมต่อ กรุณาตรวจสอบสถานะ Render");
             }
         }
 
-        function copyToClipboard() {
-            const idText = document.getElementById('id-display').innerText;
-            navigator.clipboard.writeText(idText).then(() => {
-                const copyBtn = document.getElementById('copyBtn');
-                copyBtn.innerText = "✅ คัดลอกแล้ว!";
-                setTimeout(() => { copyBtn.innerText = "คัดลอกรหัส ID"; }, 2000);
+        function copyId() {
+            const text = document.getElementById('id-display').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("คัดลอกรหัส " + text + " แล้ว!");
             });
         }
     </script>
 </body>
 </html>
-
-
-
-
-
