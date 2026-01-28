@@ -9,11 +9,13 @@ import json
 
 # --- 🔒 การเชื่อมต่อ Firebase ---
 try:
+    # ดึงค่าจาก Environment Variable บน Render
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
         firebase_config_dict = json.loads(firebase_config_str)
         cred = credentials.Certificate(firebase_config_dict)
     else:
+        # สำหรับรันในเครื่องตัวเอง
         cred = credentials.Certificate("firebase-key.json")
 
     firebase_admin.initialize_app(cred, {
@@ -35,7 +37,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพ 50x50 (แนะนำขนาดนี้เพื่อเลี่ยง Error ใน Roblox)
+        # 1. ประมวลผลรูปภาพเป็น 50x50 พิกเซล
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -48,42 +50,43 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/
+        # 2. บันทึกข้อมูลพิกเซลลงโฟลเดอร์ images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (ฉบับเจาะจงโครงสร้าง UsersID)
+        # 3. ระบบค้นหาและอัปเดตเจาะจงโครงสร้าง UsersID
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 ค้นหาบัตรเลขที่: '{search_target}'") # จะขึ้นใน Log ของ Render
+            print(f"🔎 กำลังเริ่มค้นหา CitizenID: '{search_target}' ในฐานข้อมูล...")
             
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get()
+            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดภายใต้ UsersID
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุก Node ภายใต้ UsersID
+                # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
                 for roblox_id, data in all_users.items():
-                    # ดึงค่า CitizenID มาเปรียบเทียบ (บังคับเป็น String ทั้งคู่)
+                    # ดึงค่า CitizenID จาก DB และบังคับเป็น String เพื่อป้องกันปัญหา Type mismatch
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในจุดที่พบข้อมูล
+                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูล
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id}")
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # หากหาไม่เจอ (เป็นที่มาของเลข 18 ใน Log)
-                print(f"⚠️ หาไม่พบ: เลขบัตร {search_target} ไม่มีในฐานข้อมูล")
-                return jsonify({"error": "ID Not Found"}), 404
+                # แจ้ง Error เมื่อหาไม่พบ (สาเหตุหลักที่ทำให้ Log ขึ้น 200 แต่ข้อมูลไม่เปลี่ยน)
+                error_msg = f"ไม่พบเลขบัตร '{search_target}' ในระบบ"
+                print(f"⚠️ {error_msg}")
+                return jsonify({"error": error_msg}), 404
         
         return jsonify({"success": True, "id": image_id})
 
@@ -96,5 +99,6 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
+    # กำหนด Port สำหรับ Render.com
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
