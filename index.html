@@ -32,15 +32,15 @@
         
         <div class="section">
             <h3>[ สำหรับ ทำบัตรครั้งแรก ]</h3>
-            <label>เลือกรูปภาพ:</label>
+            <label>เลือกรูปภาพ</label>
             <input type="file" id="fileNormal" accept="image/*">
             <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลด</button>
         </div>
 
         <div class="section">
             <h3>[ อัปเดตรูป สำหรับคนที่ทำบัตรแล้ว ]</h3>
-            <label>No.ID ( No. ใต้บัตร )</label>
-            <input type="text" id="robloxIdInput" placeholder="ตัวอย่าง: 9232519691">
+            <label>ID ( ID ใต้บัตร Mine City )</label>
+            <input type="text" id="robloxIdInput" placeholder="ตัวอย่าง: 1234567890">
             <label>เลือกรูปภาพใหม่:</label>
             <input type="file" id="fileAuto" accept="image/*">
             <button class="btn-auto" onclick="handleUpload('auto')">อัปเดตรูป</button>
@@ -55,7 +55,7 @@
     </div>
 
     <script>
-        // --- 🔒 การตั้งค่า Firebase (อ้างอิงจากฐานข้อมูลจริงของคุณ) ---
+        // --- 🔒 การตั้งค่า Firebase (URL จากรูปของคุณ) ---
         const firebaseConfig = {
             databaseURL: "https://minecityimages-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
@@ -71,19 +71,19 @@
             let robloxId = document.getElementById('robloxIdInput').value.trim();
 
             if (fileInput.files.length === 0) {
-                alert("กรุณาเลือกรูปก่อนครับ!");
+                alert("กรุณาเลือกรูป!");
                 return;
             }
 
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
-            statusText.innerText = "กำลังส่งพิกเซลไปที่ Render...";
+            statusText.innerText = "กำลัง Render...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
 
             try {
-                // 1. ส่งรูปไปให้ Render ประมวลผลพิกเซล 50x50
+                // 1. ส่งรูปไปให้ Render ประมวลผลพิกเซล
                 const response = await fetch('https://mine-city.onrender.com/upload', {
                     method: 'POST',
                     body: formData
@@ -96,37 +96,33 @@
                     idDisplay.innerText = newImageId;
 
                     if (type === 'auto') {
-                        if (!robloxId) {
-                            alert("กรุณากรอก No.ID (RobloxID) ก่อนอัปเดตครับ!");
-                            return;
-                        }
+                        statusText.innerText = "⌛ กำลังสั่งอัปเดต";
                         
-                        statusText.innerText = "⌛ กำลังอัปเดตค่าเข้า Firebase...";
-                        
-                        // 2. 🚀 อัปเดต ImageURL ไปที่ตำแหน่ง UsersID/[RobloxID] ทันที
+                        // 2. 🚀 สั่งเขียนข้อมูลทับที่ตำแหน่ง RobloxID ทันที
                         database.ref('UsersID/' + robloxId).update({
                             "ImageURL": newImageId
                         }).then(() => {
-                            statusText.innerText = "✅ อัปเดตข้อมูลสำเร็จ!";
-                            alert("สำเร็จ! เปลี่ยนรูปสำหรับ ID: " + robloxId + " เรียบร้อยแล้ว");
+                            statusText.innerText = "✅ อัปเดตสำเร็จ!";
+                            alert("สำเร็จ! อัปเดตเรียบร้อยแล้ว);
                         }).catch((err) => {
                             statusText.innerText = "❌ Firebase Error: " + err.message;
                             console.error(err);
                         });
                     } else {
-                        statusText.innerText = "✅ อัปโหลดสำเร็จ! โปรดคัดลอกรหัสพิกเซล";
+                        statusText.innerText = "✅ อัปโหลดสำเร็จ!";
                     }
                 }
             } catch (error) {
-                statusText.innerText = "❌ การเชื่อมต่อล้มเหลว กรุณาตรวจสอบ Render";
-                alert("ไม่สามารถติดต่อ Server ได้ กรุณาลองใหม่อีกครั้ง");
+                statusText.innerText = "❌ Server มีปัญหา กรุณาติดต่อทีมงาน";
+                alert("กรุณาติดต่อทีมงาน");
             }
         }
 
         function copyId() {
             const text = document.getElementById('id-display').innerText;
-            navigator.clipboard.writeText(text).then(() => alert("คัดลอกรหัส " + text + " เรียบร้อย!"));
+            navigator.clipboard.writeText(text).then(() => alert("คัดลอกเรียบร้อย!"));
         }
     </script>
 </body>
 </html>
+
