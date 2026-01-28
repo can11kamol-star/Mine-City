@@ -66,7 +66,7 @@
             const copyBtn = document.getElementById('copyBtn');
             
             let fileInput = (type === 'normal') ? document.getElementById('fileNormal') : document.getElementById('fileAuto');
-            let citizenId = document.getElementById('userIdInput').value;
+            let citizenId = document.getElementById('userIdInput').value.trim();
 
             if (fileInput.files.length === 0) {
                 alert("กรุณาเลือกรูปภาพก่อนครับ!");
@@ -81,14 +81,14 @@
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
             copyBtn.style.display = "none";
-            statusText.innerText = "ระบบกำลังส่งข้อมูลไปยัง Mine City API...";
+            statusText.innerText = "กำลังสื่อสารกับ Mine City API...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
             
-            // ส่งเลขใต้บัตรไปให้ Python เพื่อทำการค้นหา
+            // ส่งเลขใต้บัตรไปให้ Python (ตัวแปรต้องชื่อ userId ตามที่ Python รอรับ)
             if (type === 'auto') {
-                formData.append('userId', citizenId.trim()); 
+                formData.append('userId', citizenId); 
             }
 
             try {
@@ -110,6 +110,7 @@
                         statusText.innerText = "✅ อัปโหลดสำเร็จ! ได้รับรหัสรูปภาพ";
                     }
                 } else {
+                    // กรณี Error (เช่น หาเลขบัตรไม่เจอ) จะมาตกที่นี่
                     statusText.innerText = "❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่พบข้อมูล");
                     alert("ข้อผิดพลาด: " + (data.error || "ไม่สามารถอัปเดตข้อมูลได้"));
                 }
