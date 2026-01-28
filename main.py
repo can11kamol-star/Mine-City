@@ -9,13 +9,13 @@ import json
 
 # --- 🔒 การเชื่อมต่อ Firebase ---
 try:
-    # ดึงค่าจาก Environment Variable บน Render
+    # ดึงค่าจาก Environment Variable บน Render.com
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
         firebase_config_dict = json.loads(firebase_config_str)
         cred = credentials.Certificate(firebase_config_dict)
     else:
-        # สำหรับรันในเครื่องตัวเอง
+        # สำหรับรันเทสในเครื่องตัวเอง
         cred = credentials.Certificate("firebase-key.json")
 
     firebase_admin.initialize_app(cred, {
@@ -50,7 +50,7 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลงโฟลเดอร์ images/ เพื่อให้ Roblox ดึงไปวาด
+        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
@@ -69,22 +69,23 @@ def upload_image():
             if all_users:
                 # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
                 for roblox_id, data in all_users.items():
-                    # ดึงค่า CitizenID จาก DB และบังคับเป็น String เพื่อป้องกันปัญหา Type mismatch
+                    # บังคับเป็น String และตัดช่องว่างเพื่อป้องกันปัญหา Type mismatch (สาเหตุหลักที่หาไม่เจอ)
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูล
+                # อัปเดตเฉพาะ ImageURL ในตำแหน่งที่พบข้อมูล
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})")
-                return jsonify({"success": True, "id": image_id})
+                status_log = f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})"
+                print(status_log)
+                return jsonify({"success": True, "id": image_id, "status": status_log})
             else:
-                # แจ้ง Error เมื่อหาไม่พบ (สาเหตุหลักที่ทำให้ Log ขึ้น 200 แต่ข้อมูลไม่เปลี่ยน)
-                error_msg = f"ไม่พบเลขบัตร '{search_target}' ในระบบ"
+                # แจ้ง Error เมื่อหาไม่เจอ (ทำให้หน้าเว็บแสดง alert บอกผู้ใช้ได้)
+                error_msg = f"ไม่พบเลขบัตร '{search_target}' ในฐานข้อมูลระบบ"
                 print(f"⚠️ {error_msg}")
                 return jsonify({"error": error_msg}), 404
         
