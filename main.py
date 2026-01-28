@@ -9,7 +9,7 @@ import json
 
 # --- 🔒 การเชื่อมต่อ Firebase ---
 try:
-    # ดึงค่าจาก Environment Variable บน Render
+    # สำหรับ Render.com จะดึงค่าจาก Environment Variable
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
         firebase_config_dict = json.loads(firebase_config_str)
@@ -37,7 +37,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพ 50x50
+        # 1. ประมวลผลรูปภาพ 50x50 เพื่อความเสถียรในระบบ Mine City
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -67,24 +67,24 @@ def upload_image():
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุกๆ RobloxID ที่ซ้อนอยู่ใต้ UsersID
+                # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
                 for roblox_id, data in all_users.items():
-                    # ดึงค่า CitizenID จาก DB และบังคับเป็น String เพื่อเปรียบเทียบ
-                    # ป้องกันปัญหา Type mismatch ที่ทำให้ Log ขึ้น 200 18
+                    # บังคับแปลงเป็น String ทั้งคู่เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
+                    # ตรวจสอบหัวข้อ CitizenID ในฐานข้อมูล
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูล
+                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลผู้เล่น
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})")
+                print(f"✅ อัปเดตสำเร็จสำหรับ CitizenID {search_target} (RobloxID: {found_roblox_id})")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # ตอบกลับ Error เมื่อหาไม่พบ (สาเหตุของเลข 18 ใน Log)
+                # หากหาไม่เจอ จะขึ้นแจ้งเตือนที่ Logs ของ Render
                 print(f"⚠️ หาไม่พบ: CitizenID '{search_target}' ไม่อยู่ในฐานข้อมูล")
                 return jsonify({"error": "CitizenID not found"}), 404
         
@@ -99,5 +99,6 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
+    # กำหนด Port สำหรับ Render.com
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
