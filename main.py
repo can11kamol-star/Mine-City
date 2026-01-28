@@ -9,7 +9,7 @@ import json
 
 # --- 🔒 การเชื่อมต่อ Firebase ---
 try:
-    # สำหรับ Render.com จะดึงค่าจาก Environment Variable
+    # ดึงค่าจาก Environment Variable บน Render.com
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
         firebase_config_dict = json.loads(firebase_config_str)
@@ -37,7 +37,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพ 50x50 เพื่อความเสถียรในระบบ Mine City
+        # 1. ประมวลผลรูปภาพเป็น 50x50 พิกเซล
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -50,14 +50,14 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
+        # 2. บันทึกข้อมูลพิกเซลลงโฟลเดอร์ images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
+        # 3. ระบบค้นหาและอัปเดตเจาะจงโครงสร้าง UsersID
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
             print(f"🔎 กำลังเริ่มค้นหา CitizenID: '{search_target}'")
@@ -69,7 +69,7 @@ def upload_image():
             if all_users:
                 # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
                 for roblox_id, data in all_users.items():
-                    # บังคับแปลงเป็น String ทั้งคู่เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
+                    # บังคับเป็น String ทั้งคู่เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
                     # ตรวจสอบหัวข้อ CitizenID ในฐานข้อมูล
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
