@@ -7,7 +7,6 @@ import uuid
 import os
 import json
 
-# --- 🔒 การเชื่อมต่อ Firebase ---
 try:
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
@@ -29,7 +28,6 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # 1. ประมวลผลรูปภาพ 50x50 พิกเซล
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
             
@@ -45,31 +43,18 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกพิกเซลลง images/ (เพื่อให้ Roblox ดึงไปวาด)
+        # บันทึกข้อมูลพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. วิธีแก้แบบใหม่: เจาะจงไปที่ RobloxID ของคุณโดยตรง (ไม่ต้องวนลูปหา)
-        # เราจะลองเปลี่ยนรูปให้ RobloxID: 9232519691 ซึ่งมี CitizenID: 378901
-        target_path = 'UsersID/9232519691' 
-        
-        db.reference(target_path).update({
-            "ImageURL": image_id
-        })
-        
-        print(f"🚀 [DIRECT UPDATE] เปลี่ยน ImageURL เป็น {image_id} สำเร็จ!")
-        return jsonify({"success": True, "id": image_id, "path_updated": target_path})
+        # ส่งแค่รหัสรูปกลับไปให้หน้าเว็บ เพื่อให้หน้าเว็บไปอัปเดตต่อเอง
+        return jsonify({"success": True, "id": image_id})
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-@app.route('/', methods=['GET'])
-def home():
-    return "Mine City Direct-API is Running!"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
