@@ -48,41 +48,43 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกพิกเซลลง images/
+        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
+        # 3. ระบบค้นหาเป้าหมายแบบละเอียด (Manual Mapping)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 เริ่มค้นหา CitizenID: '{search_target}'")
+            print(f"🔎 กำลังไล่หา CitizenID: '{search_target}' ในฐานข้อมูล...")
             
+            # ดึงข้อมูล UsersID ทั้งหมดมาตรวจสอบ
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูลทั้งหมดใน UsersID
+            all_users_data = users_ref.get()
 
-            found_roblox_id = None
-            if all_users:
-                # วนลูปหาในทุก Node เพื่อมองหา CitizenID ที่ตรงกัน
-                for roblox_id, data in all_users.items():
-                    # บังคับแปลงเป็น String ทั้งคู่เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
-                    db_citizen_id = str(data.get('CitizenID', '')).strip()
+            target_roblox_id = None
+            if all_users_data:
+                # วนลูปเช็กทุก RobloxID (เช่น 9232519691) เพื่อมองหา CitizenID ที่ตรงกัน
+                for roblox_id, user_info in all_users_data.items():
+                    # บังคับแปลง CitizenID จาก DB เป็น String เพื่อป้องกันปัญหา Type mismatch
+                    db_citizen_id = str(user_info.get('CitizenID', '')).strip()
+                    
                     if db_citizen_id == search_target:
-                        found_roblox_id = roblox_id
+                        target_roblox_id = roblox_id
                         break
             
-            if found_roblox_id:
-                # อัปเดตเฉพาะ ImageURL ในตำแหน่งที่พบข้อมูลผู้เล่น
-                db.reference(f'UsersID/{found_roblox_id}').update({
+            if target_roblox_id:
+                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลเป้าหมาย
+                db.reference(f'UsersID/{target_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดต ImageURL ให้ {found_roblox_id}")
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id} (CitizenID: {search_target})")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # หากหาไม่เจอ (ต้นเหตุของเลข 18 ใน Logs)
-                print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่มีในฐานข้อมูล")
+                # หากหาไม่เจอ (เป็นที่มาของสถานะ 200 18 ใน Log)
+                print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่อยู่ในฐานข้อมูล")
                 return jsonify({"error": "ID not found"}), 404
         
         return jsonify({"success": True, "id": image_id})
@@ -96,5 +98,6 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
+    # ตั้งค่า Port สำหรับ Render.com
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
