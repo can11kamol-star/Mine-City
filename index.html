@@ -28,22 +28,22 @@
 <body>
     <div class="card">
         <h2>📱 Mine City</h2>
-        <p class="sub-title">ระบบจัดการรูปติดบัตร [ ฉบับสั่งตรง Firebase ]</p>
+        <p class="sub-title">ระบบจัดการรูปติดบัตร [ แนะนำเป็นขนาด 1:1 ]</p>
         
         <div class="section">
-            <h3>[ สำหรับอัปโหลดเอารหัส ID ]</h3>
-            <label>เลือกรูปภาพ:</label>
+            <h3>[ สำหรับ ทำบัตรครั้งแรก ]</h3>
+            <label>เลือกรูปภาพ</label>
             <input type="file" id="fileNormal" accept="image/*">
-            <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลดเอารหัส ID</button>
+            <button class="btn-normal" onclick="handleUpload('normal')">อัปโหลด</button>
         </div>
 
         <div class="section">
-            <h3>[ อัปเดตรูปเข้าบัตรประชาชนทันที ]</h3>
-            <label>RobloxID (ตำแหน่งในฐานข้อมูล):</label>
-            <input type="text" id="robloxIdInput" placeholder="ตัวอย่าง: 9232519691" value="9232519691">
+            <h3>[ อัปเดตรูป สำหรับคนที่ทำบัตรแล้ว ]</h3>
+            <label>ID ( ID ใต้บัตร Mine City )</label>
+            <input type="text" id="robloxIdInput" placeholder="ตัวอย่าง: 1234567890">
             <label>เลือกรูปภาพใหม่:</label>
             <input type="file" id="fileAuto" accept="image/*">
-            <button class="btn-auto" onclick="handleUpload('auto')">อัปเดตรูปเข้าบัตรทันที</button>
+            <button class="btn-auto" onclick="handleUpload('auto')">อัปเดตรูป</button>
         </div>
 
         <div id="result-container">
@@ -71,13 +71,13 @@
             let robloxId = document.getElementById('robloxIdInput').value.trim();
 
             if (fileInput.files.length === 0) {
-                alert("กรุณาเลือกรูปภาพก่อนครับ!");
+                alert("กรุณาเลือกรูป!");
                 return;
             }
 
             idDisplay.innerText = "กำลังประมวลผล...";
             resultContainer.style.display = "block";
-            statusText.innerText = "กำลังส่งรูปไปที่ Render...";
+            statusText.innerText = "กำลัง Render...";
 
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
@@ -96,14 +96,14 @@
                     idDisplay.innerText = newImageId;
 
                     if (type === 'auto') {
-                        statusText.innerText = "⌛ กำลังสั่งอัปเดต Firebase โดยตรง...";
+                        statusText.innerText = "⌛ กำลังสั่งอัปเดต";
                         
                         // 2. 🚀 สั่งเขียนข้อมูลทับที่ตำแหน่ง RobloxID ทันที
                         database.ref('UsersID/' + robloxId).update({
                             "ImageURL": newImageId
                         }).then(() => {
-                            statusText.innerText = "✅ อัปเดต ImageURL สำเร็จ!";
-                            alert("สำเร็จ! ค่าใน Firebase ของคุณเปลี่ยนเป็น: " + newImageId);
+                            statusText.innerText = "✅ อัปเดตสำเร็จ!";
+                            alert("สำเร็จ! อัปเดตเรียบร้อยแล้ว);
                         }).catch((err) => {
                             statusText.innerText = "❌ Firebase Error: " + err.message;
                             console.error(err);
@@ -113,8 +113,8 @@
                     }
                 }
             } catch (error) {
-                statusText.innerText = "❌ ติดต่อ Server ไม่ได้";
-                alert("กรุณาเช็คว่า Render ของคุณเปิดอยู่หรือไม่");
+                statusText.innerText = "❌ Server มีปัญหา กรุณาติดต่อทีมงาน";
+                alert("กรุณาติดต่อทีมงาน");
             }
         }
 
@@ -125,3 +125,4 @@
     </script>
 </body>
 </html>
+
