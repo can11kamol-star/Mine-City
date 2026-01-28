@@ -29,14 +29,13 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # 1. ตรวจสอบไฟล์รูปภาพ
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
         
-        # รับค่าจากหน้าเว็บ (ซึ่งตอนนี้คือ CitizenID เช่น 378901)
+        # รับค่า CitizenID จากหน้าเว็บ
         citizen_id_input = request.form.get('userId') 
         
-        # 2. ประมวลผลรูปภาพ (50x50 พิกเซล)
+        # 1. ประมวลผลรูปภาพ 50x50
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50)) 
@@ -47,41 +46,45 @@ def upload_image():
                 r, g, b = img.getpixel((x, y))
                 pixels.append([r, g, b])
                 
-        # 3. สร้างรหัสรูปภาพ 8 หลัก
         image_id = str(uuid.uuid4())[:8]
         
-        # 4. บันทึกข้อมูลพิกเซลลง images/
+        # 2. บันทึกข้อมูลพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
         
-        # 5. ระบบค้นหา UserId จาก CitizenID เพื่ออัปเดตรูป
+        # 3. ระบบค้นหาและอัปเดต (ปรับปรุงใหม่ให้แม่นยำ 100%)
         status_msg = "Image generated"
         if citizen_id_input and citizen_id_input.strip() != "":
+            search_id = str(citizen_id_input).strip()
+            print(f"🔎 กำลังค้นหา CitizenID: '{search_id}' ในฐานข้อมูล...")
+            
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูลผู้เล่นทั้งหมดมาค้นหา
+            all_users = users_ref.get() # ดึงข้อมูลผู้เล่นทั้งหมด
             
             target_roblox_id = None
             if all_users:
                 for roblox_id, data in all_users.items():
-                    # ตรวจสอบว่า CitizenID ใน Firebase ตรงกับที่กรอกมาหรือไม่
-                    if str(data.get('CitizenID')) == str(citizen_id_input).strip():
+                    # ดึงค่า CitizenID จาก Firebase และแปลงเป็น String เพื่อป้องกันปัญหาประเภทข้อมูล
+                    db_citizen_id = str(data.get('CitizenID', '')).strip()
+                    
+                    if db_citizen_id == search_id:
                         target_roblox_id = roblox_id
                         break
             
             if target_roblox_id:
-                # ถ้าเจอ ให้เข้าไปอัปเดต ImageURL ในโฟลเดอร์ UserId นั้นๆ
+                # ถ้าเจอ ให้เข้าไปเขียนทับ ImageURL
                 db.reference(f'UsersID/{target_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                status_msg = f"Successfully updated ImageURL for CitizenID: {citizen_id_input}"
-                print(f"✅ {status_msg} (RobloxID: {target_roblox_id})")
+                status_msg = f"Successfully updated ImageURL for CitizenID: {search_id}"
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id}")
             else:
-                status_msg = f"CitizenID {citizen_id_input} not found in database"
-                print(f"⚠️ {status_msg}")
-                return jsonify({"error": status_msg}), 404
+                error_log = f"ไม่พบเลขบัตร '{search_id}' ในโฟลเดอร์ UsersID"
+                print(f"⚠️ {error_log}")
+                return jsonify({"error": error_log}), 404
         
         return jsonify({
             "success": True, 
