@@ -35,7 +35,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพ 50x50 เพื่อความเสถียร (ตามขนาดพิกเซลที่คุณใช้ล่าสุด)
+        # 1. ประมวลผลรูปภาพ 50x50 (แนะนำขนาดนี้เพื่อเลี่ยง Error ใน Roblox)
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -55,36 +55,35 @@ def upload_image():
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดตเจาะจงโครงสร้าง UsersID
+        # 3. ระบบค้นหาและอัปเดต (ฉบับเจาะจงโครงสร้าง UsersID)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 กำลังค้นหา CitizenID: '{search_target}'")
+            print(f"🔎 ค้นหาบัตรเลขที่: '{search_target}'") # จะขึ้นใน Log ของ Render
             
             users_ref = db.reference('UsersID')
             all_users = users_ref.get()
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุกๆ RobloxID
+                # วนลูปหาในทุก Node ภายใต้ UsersID
                 for roblox_id, data in all_users.items():
-                    # ตรวจสอบว่า CitizenID ใน Firebase ตรงกับที่กรอกมาหรือไม่ (บังคับเป็น String ทั้งคู่)
+                    # ดึงค่า CitizenID มาเปรียบเทียบ (บังคับเป็น String ทั้งคู่)
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในโฟลเดอร์ RobloxID ที่พบ
+                # อัปเดต ImageURL ในจุดที่พบข้อมูล
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ อัปเดตสำเร็จ! CitizenID: {search_target} -> RobloxID: {found_roblox_id}")
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id}")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # ตอบกลับ Error หากหาไม่เจอ (ป้องกัน Log 200 18 แบบไม่มีรายละเอียด)
-                error_msg = f"ไม่พบ CitizenID: {search_target} ในระบบ"
-                print(f"⚠️ {error_msg}")
-                return jsonify({"error": error_msg}), 404
+                # หากหาไม่เจอ (เป็นที่มาของเลข 18 ใน Log)
+                print(f"⚠️ หาไม่พบ: เลขบัตร {search_target} ไม่มีในฐานข้อมูล")
+                return jsonify({"error": "ID Not Found"}), 404
         
         return jsonify({"success": True, "id": image_id})
 
