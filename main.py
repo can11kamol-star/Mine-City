@@ -9,7 +9,7 @@ import json
 
 # --- 🔒 การเชื่อมต่อ Firebase ---
 try:
-    # ดึงค่าจาก Environment Variable บน Render.com
+    # ดึงค่าจาก Environment Variable บน Render
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
         firebase_config_dict = json.loads(firebase_config_str)
@@ -50,7 +50,7 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
+        # 2. บันทึกข้อมูลพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
@@ -70,7 +70,7 @@ def upload_image():
                 # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
                 for roblox_id, data in all_users.items():
                     # ดึงค่า CitizenID จาก DB และบังคับเป็น String เพื่อเปรียบเทียบ
-                    # ป้องกันปัญหา Type mismatch ที่ทำให้ Log ตอบกลับ 200 18
+                    # แก้ปัญหา Type mismatch ที่ทำให้ Log ตอบกลับ 200 18
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     
                     if db_citizen_id == search_target:
@@ -82,11 +82,11 @@ def upload_image():
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})")
+                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id}")
                 return jsonify({"success": True, "id": image_id})
             else:
                 # หากหาไม่เจอ (ต้นเหตุของเลข 18 ใน Logs)
-                print(f"⚠️ หาไม่พบ: CitizenID '{search_target}' ไม่อยู่ในฐานข้อมูล")
+                print(f"⚠️ หาไม่พบ: CitizenID '{search_target}'")
                 return jsonify({"error": "ID not found"}), 404
         
         return jsonify({"success": True, "id": image_id})
