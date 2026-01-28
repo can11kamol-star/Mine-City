@@ -29,7 +29,7 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # รับค่า CitizenID จากหน้าเว็บ
+        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
         citizen_id_input = request.form.get('userId')
         
         if 'image' not in request.files:
@@ -48,42 +48,44 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/ (เพื่อให้ Roblox ดึงไปวาด)
+        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาเป้าหมายแบบเจาะจง (Flexible Matching)
+        # 3. ระบบค้นหาเป้าหมายแบบละเอียด (Manual Mapping)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 กำลังเริ่มค้นหา CitizenID: '{search_target}'")
+            print(f"🔎 เริ่มค้นหา CitizenID: '{search_target}'")
             
+            # ดึงข้อมูล UsersID ทั้งหมดมาตรวจสอบ
             users_ref = db.reference('UsersID')
-            all_users = users_ref.get() # ดึงข้อมูล UsersID ทั้งหมด
+            all_users_data = users_ref.get()
 
             target_roblox_id = None
-            if all_users:
-                # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
-                for roblox_id, data in all_users.items():
-                    # บังคับแปลงค่าจาก DB เป็น String เพื่อให้เทียบกับหน้าเว็บได้
-                    # ป้องกันปัญหา Number vs String ที่ทำให้ Log ขึ้น 200 18
-                    db_citizen_id = str(data.get('CitizenID', '')).strip()
+            if all_users_data:
+                # วนลูปเช็กทุก RobloxID (เช่น 9232519691) เพื่อมองหา CitizenID ที่ตรงกัน
+                for roblox_id, user_info in all_users_data.items():
+                    # บังคับแปลง CitizenID จาก DB เป็น String เพื่อป้องกันปัญหา Type mismatch
+                    db_citizen_id = str(user_info.get('CitizenID', '')).strip()
+                    
                     if db_citizen_id == search_target:
                         target_roblox_id = roblox_id
                         break
             
             if target_roblox_id:
-                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลผู้เล่น
+                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูลเป้าหมาย
                 db.reference(f'UsersID/{target_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                print(f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id}")
-                return jsonify({"success": True, "id": image_id})
+                status_msg = f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {target_roblox_id}"
+                print(status_msg)
+                return jsonify({"success": True, "id": image_id, "message": status_msg})
             else:
-                # หากหาไม่เจอ (ต้นเหตุของเลข 18 ใน Logs)
-                print(f"⚠️ หาไม่พบเลข {search_target} ในฐานข้อมูล")
+                # หากหาไม่เจอ (เป็นที่มาของสถานะ 200 18 ใน Log)
+                print(f"⚠️ หาไม่พบ: CitizenID {search_target} ไม่อยู่ในฐานข้อมูล")
                 return jsonify({"error": "ID not found"}), 404
         
         return jsonify({"success": True, "id": image_id})
@@ -97,6 +99,6 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
-    # กำหนด Port สำหรับ Render
+    # ตั้งค่า Port สำหรับ Render.com
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
