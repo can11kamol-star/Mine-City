@@ -9,7 +9,7 @@ import json
 
 # --- 🔒 การเชื่อมต่อ Firebase ---
 try:
-    # ดึงค่าจาก Environment Variable บน Render.com
+    # ดึงค่าจาก Environment Variable บน Render
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
         firebase_config_dict = json.loads(firebase_config_str)
@@ -31,13 +31,13 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
+        # รับค่า CitizenID จากหน้าเว็บ
         citizen_id_input = request.form.get('userId')
         
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
-        # 1. ประมวลผลรูปภาพเป็น 50x50 พิกเซล
+        # 1. ประมวลผลรูปภาพ 50x50
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
@@ -50,44 +50,41 @@ def upload_image():
                 
         image_id = str(uuid.uuid4())[:8]
         
-        # 2. บันทึกข้อมูลพิกเซลลง images/ เพื่อให้ Roblox ดึงไปวาด
+        # 2. บันทึกข้อมูลพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดตเจาะจงโครงสร้าง UsersID
+        # 3. ระบบค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
-            print(f"🔎 กำลังเริ่มค้นหา CitizenID: '{search_target}' ในฐานข้อมูล...")
+            print(f"🔎 กำลังเริ่มค้นหา CitizenID: '{search_target}'")
             
             users_ref = db.reference('UsersID')
             all_users = users_ref.get() # ดึงข้อมูลทั้งหมดภายใต้ UsersID
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุกๆ RobloxID (เช่น 9232519691)
+                # วนลูปหาในทุกๆ RobloxID
                 for roblox_id, data in all_users.items():
-                    # บังคับเป็น String และตัดช่องว่างเพื่อป้องกันปัญหา Type mismatch (สาเหตุหลักที่หาไม่เจอ)
+                    # บังคับเป็น String เพื่อป้องกันปัญหา Type mismatch (สาเหตุของเลข 18 ใน Log)
                     db_citizen_id = str(data.get('CitizenID', '')).strip()
                     if db_citizen_id == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดตเฉพาะ ImageURL ในตำแหน่งที่พบข้อมูล
+                # อัปเดต ImageURL ในตำแหน่งที่พบข้อมูล
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
-                status_log = f"✅ สำเร็จ! อัปเดตรูปให้ RobloxID: {found_roblox_id} (CitizenID: {search_target})"
-                print(status_log)
-                return jsonify({"success": True, "id": image_id, "status": status_log})
+                print(f"✅ อัปเดตสำเร็จสำหรับ CitizenID {search_target} (RobloxID: {found_roblox_id})")
+                return jsonify({"success": True, "id": image_id})
             else:
-                # แจ้ง Error เมื่อหาไม่เจอ (ทำให้หน้าเว็บแสดง alert บอกผู้ใช้ได้)
-                error_msg = f"ไม่พบเลขบัตร '{search_target}' ในฐานข้อมูลระบบ"
-                print(f"⚠️ {error_msg}")
-                return jsonify({"error": error_msg}), 404
+                print(f"⚠️ ไม่พบเลขบัตร '{search_target}' ในระบบ")
+                return jsonify({"error": "CitizenID not found"}), 404
         
         return jsonify({"success": True, "id": image_id})
 
@@ -100,6 +97,5 @@ def home():
     return "Mine City API is Running!"
 
 if __name__ == '__main__':
-    # กำหนด Port สำหรับ Render.com
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
