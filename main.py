@@ -29,7 +29,7 @@ CORS(app)
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        # รับค่า CitizenID จากหน้าเว็บ
+        # รับค่า CitizenID จากหน้าเว็บ (เช่น 378901)
         citizen_id_input = request.form.get('userId')
         
         if 'image' not in request.files:
@@ -55,7 +55,7 @@ def upload_image():
             "height": 50
         })
 
-        # 3. ระบบค้นหาและอัปเดต (แก้ไขโครงสร้างการวนลูป)
+        # 3. ระบบค้นหาและอัปเดต (เจาะจงโครงสร้าง UsersID)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
             users_ref = db.reference('UsersID')
@@ -63,22 +63,22 @@ def upload_image():
 
             found_roblox_id = None
             if all_users:
-                # วนลูปหาในทุกๆ RobloxID
+                # วนลูปหาในทุกๆ RobloxID ที่อยู่ใน UsersID
                 for roblox_id, data in all_users.items():
-                    # ตรวจสอบว่า CitizenID ตรงกับที่กรอกมาหรือไม่
+                    # ตรวจสอบว่า CitizenID ใน Firebase ตรงกับที่กรอกมาหรือไม่
                     if data and str(data.get('CitizenID')) == search_target:
                         found_roblox_id = roblox_id
                         break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในจุดที่พบ
+                # อัปเดต ImageURL ในตำแหน่งที่พบ (เช่น UsersID/9232519691)
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
                 print(f"✅ อัปเดตสำเร็จสำหรับ CitizenID {search_target}")
                 return jsonify({"success": True, "id": image_id})
             else:
-                # ถ้าหาไม่เจอ ให้ตอบกลับว่าหาไม่พบ (นี่คือสาเหตุของเลข 18 ใน Log)
+                # ถ้าหาไม่เจอ ให้ตอบกลับว่าหาไม่พบ (นี่คือสาเหตุที่ Log ตอบกลับสั้น)
                 print(f"⚠️ ไม่พบ CitizenID: {search_target}")
                 return jsonify({"error": "CitizenID not found"}), 404
         
