@@ -55,7 +55,7 @@ def upload_image():
             "height": 50
         })
 
-        # 4. ระบบค้นหาและอัปเดต ImageURL (เน้นความแม่นยำ)
+        # 4. ค้นหาและอัปเดต ImageURL (ฉบับแก้ปัญหา String/Number)
         if citizen_id_input:
             search_target = str(citizen_id_input).strip()
             print(f"🔎 กำลังหา CitizenID: {search_target}")
@@ -66,22 +66,23 @@ def upload_image():
             found_roblox_id = None
             if all_users:
                 for roblox_id, data in all_users.items():
-                    # ตรวจสอบว่ามีหัวข้อ CitizenID อยู่จริงหรือไม่
+                    # ตรวจสอบหัวข้อ CitizenID ในแต่ละ User
                     if 'CitizenID' in data:
+                        # บังคับแปลงเป็น String และตัดช่องว่างเพื่อความแม่นยำ
                         db_val = str(data['CitizenID']).strip()
                         if db_val == search_target:
                             found_roblox_id = roblox_id
                             break
             
             if found_roblox_id:
-                # อัปเดต ImageURL ในจุดที่เจอ
+                # อัปเดต ImageURL ในตำแหน่งที่เจอ
                 db.reference(f'UsersID/{found_roblox_id}').update({
                     "ImageURL": image_id
                 })
                 print(f"✅ อัปเดตสำเร็จสำหรับ RobloxID: {found_roblox_id}")
                 return jsonify({"success": True, "id": image_id})
             else:
-                print(f"⚠️ หาไม่พบ: ไม่พบเลขบัตร {search_target} ในระบบ")
+                print(f"⚠️ หาไม่พบ: ไม่พบเลขบัตร {search_target} ในฐานข้อมูล")
                 return jsonify({"error": f"ไม่พบเลขบัตร {search_target}"}), 404
         
         return jsonify({"success": True, "id": image_id})
