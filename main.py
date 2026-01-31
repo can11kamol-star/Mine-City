@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-# --- 🔒 เชื่อมต่อ Firebase ---
+# --- 🔒 เชื่อมต่อ Firebase (อ้างอิงจากโครงสร้างเดิมของคุณ) ---
 try:
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
@@ -27,34 +27,23 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app)
 
-# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ (ห้ามลบ) ---
+# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ (รักษาไว้) ---
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
         if 'image' not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
-            
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((50, 50))
-        
-        pixels = []
-        for y in range(50):
-            for x in range(50):
-                r, g, b = img.getpixel((x, y))
-                pixels.append([r, g, b])
-                
+        pixels = [[img.getpixel((x, y)) for x in range(50)] for y in range(50)]
         image_id = str(uuid.uuid4())[:8]
-        db.reference(f'images/{image_id}').set({
-            "data": pixels,
-            "width": 50,
-            "height": 50
-        })
+        db.reference(f'images/{image_id}').set({"data": pixels, "width": 50, "height": 50})
         return jsonify({"success": True, "id": image_id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (ปรับปรุงให้ตรงกับ UsersID) ---
+# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (แก้ไขให้ลง UsersID) ---
 @app.route('/save_player_data', methods=['POST'])
 def save_player_data():
     try:
@@ -63,15 +52,13 @@ def save_player_data():
         if not user_id:
             return jsonify({"error": "No userId"}), 400
 
-        # ✅ บันทึกลงหัวข้อ UsersID ให้ตรงกับฐานข้อมูลจริงของคุณ
+        # ✅ บันทึกลง UsersID เพื่อให้รวมกับข้อมูลบัตรประชาชนเดิม
         ref = db.reference(f'UsersID/{user_id}')
-        
-        # ✅ ใช้ update เพื่อเพิ่ม Money และ Inventory โดยไม่ลบข้อมูล Bio/Gender เดิม
         ref.update({
             'InGameName': data.get('username'),
             'Money': data.get('money'),
             'Inventory': data.get('inventory'),
-            'LastSave': {".sv": "timestamp"}
+            'LastUpdate': {".sv": "timestamp"}
         })
         return jsonify({"success": True}), 200
     except Exception as e:
@@ -81,13 +68,11 @@ def save_player_data():
 @app.route('/get_player_data/<user_id>', methods=['GET'])
 def get_player_data(user_id):
     try:
-        # ดึงข้อมูลจากหมวด UsersID
         ref = db.reference(f'UsersID/{user_id}')
         data = ref.get()
         if data:
             return jsonify(data), 200
-        else:
-            return jsonify({"status": "not_found"}), 404
+        return jsonify({"status": "not_found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
