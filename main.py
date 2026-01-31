@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-# --- 🔒 เชื่อมต่อ Firebase ---
+# --- 🔒 เชื่อมต่อ Firebase (ส่วนเดิมของคุณ) ---
 try:
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
@@ -20,13 +20,14 @@ try:
         firebase_admin.initialize_app(cred, {
             'databaseURL': 'https://minecityimages-default-rtdb.asia-southeast1.firebasedatabase.app/'
         })
-    print("✅ API is Ready for Pixel Processing")
+    print("✅ API is Ready for Mine City Processing")
 except Exception as e:
     print(f"❌ Firebase Error: {e}")
 
 app = Flask(__name__)
 CORS(app)
 
+# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ (ห้ามลบ) ---
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
@@ -44,17 +45,46 @@ def upload_image():
                 pixels.append([r, g, b])
                 
         image_id = str(uuid.uuid4())[:8]
-        
-        # บันทึกข้อมูลพิกเซลลง images/
         db.reference(f'images/{image_id}').set({
             "data": pixels,
             "width": 50,
             "height": 50
         })
-
-        # คืนแค่ ID กลับไปให้หน้าเว็บจัดการต่อ
         return jsonify({"success": True, "id": image_id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (เพิ่มใหม่) ---
+@app.route('/save_player_data', methods=['POST'])
+def save_player_data():
+    try:
+        data = request.json
+        user_id = str(data.get('userId'))
+        if not user_id:
+            return jsonify({"error": "No userId"}), 400
+
+        # บันทึกลงหัวข้อ players/ ใน Firebase
+        ref = db.reference(f'players/{user_id}')
+        ref.set({
+            'username': data.get('username'),
+            'money': data.get('money'),
+            'inventory': data.get('inventory'),
+            'timestamp': {".sv": "timestamp"}
+        })
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- 📂 ระบบโหลดข้อมูลผู้เล่น (เพิ่มใหม่) ---
+@app.route('/get_player_data/<user_id>', methods=['GET'])
+def get_player_data(user_id):
+    try:
+        ref = db.reference(f'players/{user_id}')
+        data = ref.get()
+        if data:
+            return jsonify(data), 200
+        else:
+            return jsonify({"status": "not_found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
