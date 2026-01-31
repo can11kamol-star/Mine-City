@@ -7,7 +7,7 @@ import uuid
 import os
 import json
 
-# --- 🔒 เชื่อมต่อ Firebase (ส่วนเดิมของคุณ) ---
+# --- 🔒 เชื่อมต่อ Firebase ---
 try:
     firebase_config_str = os.getenv('FIREBASE_CONFIG')
     if firebase_config_str:
@@ -27,7 +27,7 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app)
 
-# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ (ห้ามลบ) ---
+# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ ---
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
@@ -54,7 +54,7 @@ def upload_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (เพิ่มใหม่) ---
+# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (ปรับปรุงให้ตรงกับ UsersID) ---
 @app.route('/save_player_data', methods=['POST'])
 def save_player_data():
     try:
@@ -63,23 +63,26 @@ def save_player_data():
         if not user_id:
             return jsonify({"error": "No userId"}), 400
 
-        # บันทึกลงหัวข้อ players/ ใน Firebase
-        ref = db.reference(f'players/{user_id}')
-        ref.set({
-            'username': data.get('username'),
-            'money': data.get('money'),
-            'inventory': data.get('inventory'),
-            'timestamp': {".sv": "timestamp"}
+        # เปลี่ยนเป็น UsersID เพื่อให้ตรงกับฐานข้อมูลที่คุณโชว์ในภาพ
+        ref = db.reference(f'UsersID/{user_id}')
+        
+        # ใช้ update เพื่อเพิ่ม Money และ Inventory โดยไม่ลบข้อมูล Bio/Gender เดิม
+        ref.update({
+            'InGameName': data.get('username'),
+            'Money': data.get('money'),
+            'Inventory': data.get('inventory'),
+            'LastSave': {".sv": "timestamp"}
         })
         return jsonify({"success": True}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- 📂 ระบบโหลดข้อมูลผู้เล่น (เพิ่มใหม่) ---
+# --- 📂 ระบบโหลดข้อมูลผู้เล่น ---
 @app.route('/get_player_data/<user_id>', methods=['GET'])
 def get_player_data(user_id):
     try:
-        ref = db.reference(f'players/{user_id}')
+        # ดึงข้อมูลจาก UsersID
+        ref = db.reference(f'UsersID/{user_id}')
         data = ref.get()
         if data:
             return jsonify(data), 200
