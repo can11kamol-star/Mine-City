@@ -27,7 +27,7 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app)
 
-# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ ---
+# --- 🖼️ ระบบอัปโหลดรูปภาพเดิมของคุณ (ห้ามลบ) ---
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
@@ -63,10 +63,10 @@ def save_player_data():
         if not user_id:
             return jsonify({"error": "No userId"}), 400
 
-        # เปลี่ยนเป็น UsersID เพื่อให้ตรงกับฐานข้อมูลที่คุณโชว์ในภาพ
+        # ✅ บันทึกลงหัวข้อ UsersID ให้ตรงกับฐานข้อมูลจริงของคุณ
         ref = db.reference(f'UsersID/{user_id}')
         
-        # ใช้ update เพื่อเพิ่ม Money และ Inventory โดยไม่ลบข้อมูล Bio/Gender เดิม
+        # ✅ ใช้ update เพื่อเพิ่ม Money และ Inventory โดยไม่ลบข้อมูล Bio/Gender เดิม
         ref.update({
             'InGameName': data.get('username'),
             'Money': data.get('money'),
@@ -81,7 +81,7 @@ def save_player_data():
 @app.route('/get_player_data/<user_id>', methods=['GET'])
 def get_player_data(user_id):
     try:
-        # ดึงข้อมูลจาก UsersID
+        # ดึงข้อมูลจากหมวด UsersID
         ref = db.reference(f'UsersID/{user_id}')
         data = ref.get()
         if data:
