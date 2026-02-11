@@ -36,12 +36,12 @@ def upload_image():
         
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB')
-        img = img.resize((50, 50))
+        img = img.resize((100, 100))
         
         # ✅ แก้ไขตรงนี้: ทำให้เป็นลิสต์แถวเดียว (2,500 พิกเซลเรียงกัน)
         pixels = []
-        for y in range(50):
-            for x in range(50):
+        for y in range(100):
+            for x in range(100):
                 r, g, b = img.getpixel((x, y))
                 pixels.append([r, g, b]) # เก็บเป็น [ [r,g,b], [r,g,b], ... ]
         
@@ -50,8 +50,8 @@ def upload_image():
         # บันทึกลง Firebase
         db.reference(f'images/{image_id}').set({
             "data": pixels, 
-            "width": 50, 
-            "height": 50
+            "width": 100, 
+            "height": 100
         })
         
         print(f"✅ บันทึกรูปภาพสำเร็จ ID: {image_id} (จำนวน {len(pixels)} พิกเซล)")
@@ -102,6 +102,7 @@ def get_player_data(user_id):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
