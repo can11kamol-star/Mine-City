@@ -27,7 +27,7 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app)
 
-# --- 🖼️ ระบบอัปโหลดรูปภาพ (ฉบับแก้ไขให้รูปเต็มใบ) ---
+# --- 🖼️ ระบบอัปโหลดรูปภาพ ---
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
@@ -38,30 +38,28 @@ def upload_image():
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((100, 100))
         
-        # ✅ แก้ไขตรงนี้: ทำให้เป็นลิสต์แถวเดียว (2,500 พิกเซลเรียงกัน)
         pixels = []
         for y in range(100):
             for x in range(100):
                 r, g, b = img.getpixel((x, y))
-                pixels.append([r, g, b]) # เก็บเป็น [ [r,g,b], [r,g,b], ... ]
+                pixels.append([r, g, b])
         
         image_id = str(uuid.uuid4())[:8]
         
-        # บันทึกลง Firebase
         db.reference(f'images/{image_id}').set({
             "data": pixels, 
             "width": 100, 
             "height": 100
         })
         
-        print(f"✅ บันทึกรูปภาพสำเร็จ ID: {image_id} (จำนวน {len(pixels)} พิกเซล)")
+        print(f"✅ บันทึกรูปภาพสำเร็จ ID: {image_id}")
         return jsonify({"success": True, "id": image_id})
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (รองรับระบบ Bank, Job & Fix Sync) ---
+# --- 💾 ระบบบันทึกข้อมูลผู้เล่น (เพิ่มระบบเซฟรถ Vehicles) ---
 @app.route('/save_player_data', methods=['POST'])
 def save_player_data():
     try:
@@ -70,21 +68,26 @@ def save_player_data():
         if not user_id:
             return jsonify({"error": "No userId"}), 400
 
-        # ดึงข้อมูลอาชีพจากที่ส่งมาจาก Roblox (ถ้าไม่มีให้เป็น Citizen)
         job_title = data.get('job', 'Citizen')
+        
+        # ✅ ดึงข้อมูลรายชื่อรถจากที่ส่งมา (ถ้าไม่มีให้เป็น List ว่าง)
+        owned_vehicles = data.get('vehicles', [])
 
-        # ✅ บันทึกข้อมูลลง Firebase
+        # ✅ อัปเดตข้อมูลลง Firebase (เพิ่มฟิลด์ vehicles)
         ref = db.reference(f'UsersID/{user_id}')
         ref.update({
             'InGameName': data.get('username'),
             'money': data.get('money'),
             'bank': data.get('bank'),
-            'job': job_title,                # 🛡️ เพิ่มฟิลด์อาชีพ (Job) ลง Firebase
+            'job': job_title,
             'Inventory': data.get('inventory'),
+            'vehicles': owned_vehicles,          # 🚗 เก็บรายชื่อรถที่ซื้อแล้ว
+            'jailTime': data.get('jailTime', 0), # ⚖️ เก็บเวลาติดคุก (เผื่อไว้)
             'LastSave': {".sv": "timestamp"}
         })
         return jsonify({"success": True}), 200
     except Exception as e:
+        print(f"❌ Save Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # --- 📂 ระบบโหลดข้อมูลผู้เล่น ---
@@ -94,16 +97,16 @@ def get_player_data(user_id):
         ref = db.reference(f'UsersID/{user_id}')
         data = ref.get()
         if data:
+            # 🛡️ ตรวจสอบว่าถ้าใน DB ไม่มีฟิลด์ vehicles ให้ส่ง List ว่างกลับไปแทน
+            if 'vehicles' not in data:
+                data['vehicles'] = []
             return jsonify(data), 200
+        
         return jsonify({"status": "not_found"}), 404
     except Exception as e:
+        print(f"❌ Load Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
-
-
-
-
